@@ -1,0 +1,16 @@
+{
+    "Off_Grid_Battery_Bank": "Battery Bank",
+    "Off_Grid_Charge_Controller": "Charge Controller",
+    "Off_Grid_Improvised_Battery_Crate": "Improvised Battery Crate",
+    "Off_Grid_Improvised_Wall_Cells": "Improvised Wall Cells",
+    "Off_Grid_MPPT_Charge_Controller": "MPPT Charge Controller",
+    "Off_Grid_Monocrystalline_Array": "Monocrystalline Array",
+    "Off_Grid_Monocrystalline_Roof_Panel": "Monocrystalline Roof Panel",
+    "Off_Grid_Roof_Panel": "Roof Panel",
+    "Off_Grid_Salvaged_Roof_Panel": "Salvaged Roof Panel",
+    "Off_Grid_Salvaged_Solar_Array": "Salvaged Solar Array",
+    "Off_Grid_Sealed_Battery_Cabinet": "Sealed Battery Cabinet",
+    "Off_Grid_Sealed_Wall_Cabinet": "Sealed Wall Cabinet",
+    "Off_Grid_Solar_Array": "Solar Array",
+    "Off_Grid_Wall_Battery_Box": "Wall Battery Box"
+}

@@ -1,0 +1,19 @@
+{
+    "ContextMenu_OffGrid": "Off-Grid",
+    "ContextMenu_OffGrid_Almanac": "Almanak",
+    "ContextMenu_OffGrid_Cells": "Aküler",
+    "ContextMenu_OffGrid_Clean": "Panelleri temizle",
+    "ContextMenu_OffGrid_ClearSnow": "Karı süpür",
+    "ContextMenu_OffGrid_Equalise": "Denkleştirme şarjı başlat",
+    "ContextMenu_OffGrid_EqualiseStop": "Denkleştirme şarjını durdur",
+    "ContextMenu_OffGrid_Info": "Bilgi",
+    "ContextMenu_OffGrid_Monitor": "Sistem ekranı",
+    "ContextMenu_OffGrid_Repair": "Kasayı onar",
+    "ContextMenu_OffGrid_Reset": "Sigortayı kaldır",
+    "ContextMenu_OffGrid_SwitchOff": "Kapat",
+    "ContextMenu_OffGrid_SwitchOn": "Aç",
+    "ContextMenu_OffGrid_WireCancel": "Kablodan vazgeç",
+    "ContextMenu_OffGrid_WireCut": "Kabloyu kes",
+    "ContextMenu_OffGrid_WireFrom": "Buradan kablo çek",
+    "ContextMenu_OffGrid_WireTo": "{1} bağla"
+}

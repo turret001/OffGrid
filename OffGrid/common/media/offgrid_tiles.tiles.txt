@@ -1,0 +1,4991 @@
+version = 1
+tileset
+{
+    file = offgrid_01
+    size = 4,54
+    id = 1
+    // offgrid_01_0
+    tile
+    {
+        xy = 0,0
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_1
+    tile
+    {
+        xy = 1,0
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_2
+    tile
+    {
+        xy = 2,0
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_3
+    tile
+    {
+        xy = 3,0
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_4
+    tile
+    {
+        xy = 0,1
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_5
+    tile
+    {
+        xy = 1,1
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_6
+    tile
+    {
+        xy = 2,1
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_7
+    tile
+    {
+        xy = 3,1
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_8
+    tile
+    {
+        xy = 0,2
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_9
+    tile
+    {
+        xy = 1,2
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_10
+    tile
+    {
+        xy = 2,2
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_11
+    tile
+    {
+        xy = 3,2
+        CustomName = Salvaged Solar Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArraySalvage
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_12
+    tile
+    {
+        xy = 0,3
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_13
+    tile
+    {
+        xy = 1,3
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_14
+    tile
+    {
+        xy = 2,3
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_15
+    tile
+    {
+        xy = 3,3
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_16
+    tile
+    {
+        xy = 0,4
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_17
+    tile
+    {
+        xy = 1,4
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_18
+    tile
+    {
+        xy = 2,4
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_19
+    tile
+    {
+        xy = 3,4
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_20
+    tile
+    {
+        xy = 0,5
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_21
+    tile
+    {
+        xy = 1,5
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_22
+    tile
+    {
+        xy = 2,5
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_23
+    tile
+    {
+        xy = 3,5
+        CustomName = Solar Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArray
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_24
+    tile
+    {
+        xy = 0,6
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_25
+    tile
+    {
+        xy = 1,6
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_26
+    tile
+    {
+        xy = 2,6
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_27
+    tile
+    {
+        xy = 3,6
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_28
+    tile
+    {
+        xy = 0,7
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_29
+    tile
+    {
+        xy = 1,7
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_30
+    tile
+    {
+        xy = 2,7
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_31
+    tile
+    {
+        xy = 3,7
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_32
+    tile
+    {
+        xy = 0,8
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_33
+    tile
+    {
+        xy = 1,8
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_34
+    tile
+    {
+        xy = 2,8
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_35
+    tile
+    {
+        xy = 3,8
+        CustomName = Monocrystalline Array
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridArrayMono
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 56
+    }
+    // offgrid_01_36
+    tile
+    {
+        xy = 0,9
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_37
+    tile
+    {
+        xy = 1,9
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_38
+    tile
+    {
+        xy = 2,9
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_39
+    tile
+    {
+        xy = 3,9
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_40
+    tile
+    {
+        xy = 0,10
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_41
+    tile
+    {
+        xy = 1,10
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_42
+    tile
+    {
+        xy = 2,10
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_43
+    tile
+    {
+        xy = 3,10
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_44
+    tile
+    {
+        xy = 0,11
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_45
+    tile
+    {
+        xy = 1,11
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_46
+    tile
+    {
+        xy = 2,11
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_47
+    tile
+    {
+        xy = 3,11
+        CustomName = Salvaged Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatSalvage
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_48
+    tile
+    {
+        xy = 0,12
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_49
+    tile
+    {
+        xy = 1,12
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_50
+    tile
+    {
+        xy = 2,12
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_51
+    tile
+    {
+        xy = 3,12
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_52
+    tile
+    {
+        xy = 0,13
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_53
+    tile
+    {
+        xy = 1,13
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_54
+    tile
+    {
+        xy = 2,13
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_55
+    tile
+    {
+        xy = 3,13
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_56
+    tile
+    {
+        xy = 0,14
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_57
+    tile
+    {
+        xy = 1,14
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_58
+    tile
+    {
+        xy = 2,14
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_59
+    tile
+    {
+        xy = 3,14
+        CustomName = Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlat
+        PickUpWeight = 150
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_60
+    tile
+    {
+        xy = 0,15
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_61
+    tile
+    {
+        xy = 1,15
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_62
+    tile
+    {
+        xy = 2,15
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_63
+    tile
+    {
+        xy = 3,15
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_64
+    tile
+    {
+        xy = 0,16
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_65
+    tile
+    {
+        xy = 1,16
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_66
+    tile
+    {
+        xy = 2,16
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_67
+    tile
+    {
+        xy = 3,16
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_68
+    tile
+    {
+        xy = 0,17
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_69
+    tile
+    {
+        xy = 1,17
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_70
+    tile
+    {
+        xy = 2,17
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_71
+    tile
+    {
+        xy = 3,17
+        CustomName = Monocrystalline Roof Panel
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridFlatMono
+        PickUpWeight = 170
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 16
+        IsLow = 
+    }
+    // offgrid_01_72
+    tile
+    {
+        xy = 0,18
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_73
+    tile
+    {
+        xy = 1,18
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_74
+    tile
+    {
+        xy = 2,18
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_75
+    tile
+    {
+        xy = 3,18
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_76
+    tile
+    {
+        xy = 0,19
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_77
+    tile
+    {
+        xy = 1,19
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_78
+    tile
+    {
+        xy = 2,19
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_79
+    tile
+    {
+        xy = 3,19
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_80
+    tile
+    {
+        xy = 0,20
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_81
+    tile
+    {
+        xy = 1,20
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_82
+    tile
+    {
+        xy = 2,20
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_83
+    tile
+    {
+        xy = 3,20
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_84
+    tile
+    {
+        xy = 0,21
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_85
+    tile
+    {
+        xy = 1,21
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_86
+    tile
+    {
+        xy = 2,21
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_87
+    tile
+    {
+        xy = 3,21
+        CustomName = Improvised Battery Crate
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankCrate
+        PickUpWeight = 220
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_88
+    tile
+    {
+        xy = 0,22
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_89
+    tile
+    {
+        xy = 1,22
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_90
+    tile
+    {
+        xy = 2,22
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_91
+    tile
+    {
+        xy = 3,22
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_92
+    tile
+    {
+        xy = 0,23
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_93
+    tile
+    {
+        xy = 1,23
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_94
+    tile
+    {
+        xy = 2,23
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_95
+    tile
+    {
+        xy = 3,23
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_96
+    tile
+    {
+        xy = 0,24
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_97
+    tile
+    {
+        xy = 1,24
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_98
+    tile
+    {
+        xy = 2,24
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_99
+    tile
+    {
+        xy = 3,24
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_100
+    tile
+    {
+        xy = 0,25
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_101
+    tile
+    {
+        xy = 1,25
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_102
+    tile
+    {
+        xy = 2,25
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_103
+    tile
+    {
+        xy = 3,25
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_104
+    tile
+    {
+        xy = 0,26
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_105
+    tile
+    {
+        xy = 1,26
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_106
+    tile
+    {
+        xy = 2,26
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_107
+    tile
+    {
+        xy = 3,26
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_108
+    tile
+    {
+        xy = 0,27
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_109
+    tile
+    {
+        xy = 1,27
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_110
+    tile
+    {
+        xy = 2,27
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_111
+    tile
+    {
+        xy = 3,27
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_112
+    tile
+    {
+        xy = 0,28
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_113
+    tile
+    {
+        xy = 1,28
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_114
+    tile
+    {
+        xy = 2,28
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_115
+    tile
+    {
+        xy = 3,28
+        CustomName = Battery Bank
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBank
+        PickUpWeight = 320
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solidtrans = 
+        ItemHeight = 94
+    }
+    // offgrid_01_116
+    tile
+    {
+        xy = 0,29
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_117
+    tile
+    {
+        xy = 1,29
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_118
+    tile
+    {
+        xy = 2,29
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_119
+    tile
+    {
+        xy = 3,29
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_120
+    tile
+    {
+        xy = 0,30
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_121
+    tile
+    {
+        xy = 1,30
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_122
+    tile
+    {
+        xy = 2,30
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_123
+    tile
+    {
+        xy = 3,30
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_124
+    tile
+    {
+        xy = 0,31
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_125
+    tile
+    {
+        xy = 1,31
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_126
+    tile
+    {
+        xy = 2,31
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_127
+    tile
+    {
+        xy = 3,31
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_128
+    tile
+    {
+        xy = 0,32
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_129
+    tile
+    {
+        xy = 1,32
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_130
+    tile
+    {
+        xy = 2,32
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_131
+    tile
+    {
+        xy = 3,32
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_132
+    tile
+    {
+        xy = 0,33
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_133
+    tile
+    {
+        xy = 1,33
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_134
+    tile
+    {
+        xy = 2,33
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_135
+    tile
+    {
+        xy = 3,33
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_136
+    tile
+    {
+        xy = 0,34
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_137
+    tile
+    {
+        xy = 1,34
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_138
+    tile
+    {
+        xy = 2,34
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_139
+    tile
+    {
+        xy = 3,34
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_140
+    tile
+    {
+        xy = 0,35
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_141
+    tile
+    {
+        xy = 1,35
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_142
+    tile
+    {
+        xy = 2,35
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_143
+    tile
+    {
+        xy = 3,35
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_144
+    tile
+    {
+        xy = 0,36
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_145
+    tile
+    {
+        xy = 1,36
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_146
+    tile
+    {
+        xy = 2,36
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_147
+    tile
+    {
+        xy = 3,36
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_148
+    tile
+    {
+        xy = 0,37
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 0
+        Noffset = 1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_149
+    tile
+    {
+        xy = 1,37
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = -1
+        Noffset = 0
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_150
+    tile
+    {
+        xy = 2,37
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = -2
+        Noffset = -1
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_151
+    tile
+    {
+        xy = 3,37
+        CustomName = Sealed Battery Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBankSealed
+        PickUpWeight = 380
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -3
+        Noffset = -2
+        solid = 
+        ItemHeight = 94
+    }
+    // offgrid_01_152
+    tile
+    {
+        xy = 0,38
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_153
+    tile
+    {
+        xy = 1,38
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_154
+    tile
+    {
+        xy = 2,38
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_155
+    tile
+    {
+        xy = 3,38
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_156
+    tile
+    {
+        xy = 0,39
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_157
+    tile
+    {
+        xy = 1,39
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_158
+    tile
+    {
+        xy = 2,39
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_159
+    tile
+    {
+        xy = 3,39
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_160
+    tile
+    {
+        xy = 0,40
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_161
+    tile
+    {
+        xy = 1,40
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_162
+    tile
+    {
+        xy = 2,40
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_163
+    tile
+    {
+        xy = 3,40
+        CustomName = Improvised Wall Cells
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = WoodPlank
+        Material2 = MetalScrap
+        MaterialType = Wood_Solid
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallCrate
+        PickUpWeight = 140
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_164
+    tile
+    {
+        xy = 0,41
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_165
+    tile
+    {
+        xy = 1,41
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_166
+    tile
+    {
+        xy = 2,41
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_167
+    tile
+    {
+        xy = 3,41
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_168
+    tile
+    {
+        xy = 0,42
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_169
+    tile
+    {
+        xy = 1,42
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_170
+    tile
+    {
+        xy = 2,42
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_171
+    tile
+    {
+        xy = 3,42
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_172
+    tile
+    {
+        xy = 0,43
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_173
+    tile
+    {
+        xy = 1,43
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_174
+    tile
+    {
+        xy = 2,43
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_175
+    tile
+    {
+        xy = 3,43
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_176
+    tile
+    {
+        xy = 0,44
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_177
+    tile
+    {
+        xy = 1,44
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_178
+    tile
+    {
+        xy = 2,44
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_179
+    tile
+    {
+        xy = 3,44
+        CustomName = Wall Battery Box
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallBank
+        PickUpWeight = 200
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_180
+    tile
+    {
+        xy = 0,45
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_181
+    tile
+    {
+        xy = 1,45
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_182
+    tile
+    {
+        xy = 2,45
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_183
+    tile
+    {
+        xy = 3,45
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_184
+    tile
+    {
+        xy = 0,46
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_185
+    tile
+    {
+        xy = 1,46
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_186
+    tile
+    {
+        xy = 2,46
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_187
+    tile
+    {
+        xy = 3,46
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_188
+    tile
+    {
+        xy = 0,47
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_189
+    tile
+    {
+        xy = 1,47
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_190
+    tile
+    {
+        xy = 2,47
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_191
+    tile
+    {
+        xy = 3,47
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_192
+    tile
+    {
+        xy = 0,48
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_193
+    tile
+    {
+        xy = 1,48
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_194
+    tile
+    {
+        xy = 2,48
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_195
+    tile
+    {
+        xy = 3,48
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_196
+    tile
+    {
+        xy = 0,49
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+    }
+    // offgrid_01_197
+    tile
+    {
+        xy = 1,49
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+    }
+    // offgrid_01_198
+    tile
+    {
+        xy = 2,49
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+    }
+    // offgrid_01_199
+    tile
+    {
+        xy = 3,49
+        CustomName = Sealed Wall Cabinet
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridWallSealed
+        PickUpWeight = 240
+        PickUpLevel = 0
+        MoveType = WallObject
+        IsHigh = 
+        ItemHeight = 60
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+    }
+    // offgrid_01_200
+    tile
+    {
+        xy = 0,50
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_201
+    tile
+    {
+        xy = 1,50
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_202
+    tile
+    {
+        xy = 2,50
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_203
+    tile
+    {
+        xy = 3,50
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_204
+    tile
+    {
+        xy = 0,51
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_205
+    tile
+    {
+        xy = 1,51
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_206
+    tile
+    {
+        xy = 2,51
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_207
+    tile
+    {
+        xy = 3,51
+        CustomName = Charge Controller
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridController
+        PickUpWeight = 90
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_208
+    tile
+    {
+        xy = 0,52
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_209
+    tile
+    {
+        xy = 1,52
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_210
+    tile
+    {
+        xy = 2,52
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_211
+    tile
+    {
+        xy = 3,52
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_212
+    tile
+    {
+        xy = 0,53
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_213
+    tile
+    {
+        xy = 1,53
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_214
+    tile
+    {
+        xy = 2,53
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_215
+    tile
+    {
+        xy = 3,53
+        CustomName = MPPT Charge Controller
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridControllerMPPT
+        PickUpWeight = 110
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 88
+        GeneratorSound = OffGridQuiet
+    }
+}

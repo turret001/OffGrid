@@ -1,0 +1,22 @@
+{
+    "Sandbox_OffGrid": "Off-Grid",
+    "Sandbox_OffGrid_BankScale": "Bank capacity (%%)",
+    "Sandbox_OffGrid_BankScale_tooltip": "Scales how much every battery stores.",
+    "Sandbox_OffGrid_DegradeBank": "Deep discharge damages the bank",
+    "Sandbox_OffGrid_DegradeBank_tooltip": "Running batteries flat costs capacity permanently. Cheap chemistries start suffering far sooner than sealed ones.",
+    "Sandbox_OffGrid_LinkRadius": "Link radius (tiles)",
+    "Sandbox_OffGrid_LinkRadius_tooltip": "How far each component reaches to find the next one. Banks chain, so a run of them can lead away from the controller.",
+    "Sandbox_OffGrid_OutputScale": "Array output (%%)",
+    "Sandbox_OffGrid_OutputScale_tooltip": "Scales everything the panels make. 100 is the physical model.",
+    "Sandbox_OffGrid_PickupLock": "Who may pick up solar parts",
+    "Sandbox_OffGrid_PickupLock_option1": "Anyone",
+    "Sandbox_OffGrid_PickupLock_option2": "Anyone carrying a screwdriver",
+    "Sandbox_OffGrid_PickupLock_option3": "Whoever placed it, their safehouse, admins and moderators",
+    "Sandbox_OffGrid_PickupLock_tooltip": "Panels and battery banks are expensive to build and trivial to carry off. Mods that remove the tool requirement for moving furniture otherwise make every rig free to take.",
+    "Sandbox_OffGrid_SimulateLoad": "Simulate appliance load",
+    "Sandbox_OffGrid_SimulateLoad_tooltip": "Count what the lights, fridges and ovens in range are drawing. Off means the system only ever charges.",
+    "Sandbox_OffGrid_SnowRate": "Snow build-up (%%)",
+    "Sandbox_OffGrid_SnowRate_tooltip": "How fast snow covers the glass. 0 means it never settles. Roof panels collect faster and shed slower whatever this is set to.",
+    "Sandbox_OffGrid_SoilRate": "Dust build-up (%%)",
+    "Sandbox_OffGrid_SoilRate_tooltip": "How fast dirt cuts output. Rain washes panels either way."
+}

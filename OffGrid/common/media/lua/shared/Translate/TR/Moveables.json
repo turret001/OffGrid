@@ -1,0 +1,16 @@
+{
+    "Off_Grid_Battery_Bank": "Akü Rafı",
+    "Off_Grid_Charge_Controller": "Şarj Kontrol Ünitesi",
+    "Off_Grid_Improvised_Battery_Crate": "Derme Çatma Akü Kasası",
+    "Off_Grid_Improvised_Wall_Cells": "Derme Çatma Duvar Aküsü",
+    "Off_Grid_MPPT_Charge_Controller": "MPPT Şarj Kontrol Ünitesi",
+    "Off_Grid_Monocrystalline_Array": "Monokristal Panel",
+    "Off_Grid_Monocrystalline_Roof_Panel": "Monokristal Çatı Paneli",
+    "Off_Grid_Roof_Panel": "Çatı Paneli",
+    "Off_Grid_Salvaged_Roof_Panel": "Hurda Çatı Paneli",
+    "Off_Grid_Salvaged_Solar_Array": "Hurda Güneş Paneli",
+    "Off_Grid_Sealed_Battery_Cabinet": "Kapalı Akü Dolabı",
+    "Off_Grid_Sealed_Wall_Cabinet": "Kapalı Duvar Dolabı",
+    "Off_Grid_Solar_Array": "Güneş Paneli",
+    "Off_Grid_Wall_Battery_Box": "Duvar Akü Kutusu"
+}

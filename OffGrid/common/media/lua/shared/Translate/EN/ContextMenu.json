@@ -1,0 +1,19 @@
+{
+    "ContextMenu_OffGrid": "Off-Grid",
+    "ContextMenu_OffGrid_Almanac": "Almanac",
+    "ContextMenu_OffGrid_Cells": "Batteries",
+    "ContextMenu_OffGrid_Clean": "Clean the panels",
+    "ContextMenu_OffGrid_ClearSnow": "Sweep the snow off",
+    "ContextMenu_OffGrid_Equalise": "Start an equalisation charge",
+    "ContextMenu_OffGrid_EqualiseStop": "Stop the equalisation charge",
+    "ContextMenu_OffGrid_Info": "Info",
+    "ContextMenu_OffGrid_Monitor": "System monitor",
+    "ContextMenu_OffGrid_Repair": "Repair the frame",
+    "ContextMenu_OffGrid_Reset": "Reset the breaker",
+    "ContextMenu_OffGrid_SwitchOff": "Switch off",
+    "ContextMenu_OffGrid_SwitchOn": "Switch on",
+    "ContextMenu_OffGrid_WireCancel": "Cancel the cable",
+    "ContextMenu_OffGrid_WireCut": "Cut a cable",
+    "ContextMenu_OffGrid_WireFrom": "Run cable from here",
+    "ContextMenu_OffGrid_WireTo": "Connect {1}"
+}

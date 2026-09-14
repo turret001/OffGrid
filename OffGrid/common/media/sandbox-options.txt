@@ -1,0 +1,93 @@
+VERSION = 1,
+
+/* Note the path: media/sandbox-options.txt, NOT media/lua/. The B41 layout
+   is silently dead in B42 -- neither of the two paths the loader checks
+   reaches it, and nothing is logged when it is missing.
+
+   One dot in the option id nests it: OffGrid.LinkRadius becomes
+   SandboxVars.OffGrid.LinkRadius. Two dots would not nest and the option
+   would land flat at the top level instead. */
+
+option OffGrid.LinkRadius
+{
+    type = integer,
+    min = 4,
+    max = 30,
+    default = 12,
+    page = OffGrid,
+    translation = OffGrid_LinkRadius,
+}
+
+option OffGrid.OutputScale
+{
+    type = integer,
+    min = 10,
+    max = 400,
+    default = 100,
+    page = OffGrid,
+    translation = OffGrid_OutputScale,
+}
+
+option OffGrid.BankScale
+{
+    type = integer,
+    min = 10,
+    max = 400,
+    default = 100,
+    page = OffGrid,
+    translation = OffGrid_BankScale,
+}
+
+option OffGrid.SnowRate
+{
+    type = integer,
+    min = 0,
+    max = 300,
+    default = 100,
+    page = OffGrid,
+    translation = OffGrid_SnowRate,
+}
+
+option OffGrid.SoilRate
+{
+    type = integer,
+    min = 0,
+    max = 300,
+    default = 100,
+    page = OffGrid,
+    translation = OffGrid_SoilRate,
+}
+
+option OffGrid.SimulateLoad
+{
+    type = boolean,
+    default = true,
+    page = OffGrid,
+    translation = OffGrid_SimulateLoad,
+}
+
+option OffGrid.DegradeBank
+{
+    type = boolean,
+    default = true,
+    page = OffGrid,
+    translation = OffGrid_DegradeBank,
+}
+
+/* Who may pick a placed part back up. 1 anyone, 2 anyone with a screwdriver,
+   3 the person who placed it plus their safehouse plus admins.
+
+   This exists because the mod cannot rely on the base rule: any mod that
+   loosens canPickUpMoveable (Rebalanced Prop Moving is the obvious one)
+   otherwise makes every panel free to take. Enum values are 1-based, and
+   an enum option requires numValues > 0 AND default > 0 or it is rejected. */
+
+option OffGrid.PickupLock
+{
+    type = enum,
+    numValues = 3,
+    default = 3,
+    page = OffGrid,
+    translation = OffGrid_PickupLock,
+    valueTranslation = OffGrid_PickupLock,
+}

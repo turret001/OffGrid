@@ -1,0 +1,22 @@
+{
+    "Sandbox_OffGrid": "Off-Grid",
+    "Sandbox_OffGrid_BankScale": "Akü kapasitesi (%%)",
+    "Sandbox_OffGrid_BankScale_tooltip": "Her akünün depoladığı enerjiyi ölçekler.",
+    "Sandbox_OffGrid_DegradeBank": "Tam boşalma aküye zarar verir",
+    "Sandbox_OffGrid_DegradeBank_tooltip": "Aküleri tamamen boşaltmak kapasitelerini kalıcı olarak düşürür. Ucuz kimyalar kapalı olanlardan çok daha erken bozulmaya başlar.",
+    "Sandbox_OffGrid_LinkRadius": "Bağlanma yarıçapı (kare)",
+    "Sandbox_OffGrid_LinkRadius_tooltip": "Her parçanın bir sonrakini ararken ulaştığı mesafe. Aküler zincir kurar, yani bir sıra akü kontrol ünitesinden uzağa uzanabilir.",
+    "Sandbox_OffGrid_OutputScale": "Panel üretimi (%%)",
+    "Sandbox_OffGrid_OutputScale_tooltip": "Panellerin ürettiği her şeyi ölçekler. 100 fiziksel modelin kendisi.",
+    "Sandbox_OffGrid_PickupLock": "Güneş parçalarını kim toplayabilir",
+    "Sandbox_OffGrid_PickupLock_option1": "Herkes",
+    "Sandbox_OffGrid_PickupLock_option2": "Üzerinde tornavida taşıyan herkes",
+    "Sandbox_OffGrid_PickupLock_option3": "Kuran kişi, güvenli evi, yöneticiler ve moderatörler",
+    "Sandbox_OffGrid_PickupLock_tooltip": "Paneller ve aküler kurmakla pahalı, taşımakla kolaydır. Eşya taşımak için alet şartını kaldıran modlar aksi hâlde bütün kurulumu herkese açık hâle getirir.",
+    "Sandbox_OffGrid_SimulateLoad": "Cihaz tüketimini hesapla",
+    "Sandbox_OffGrid_SimulateLoad_tooltip": "Menzildeki lamba, buzdolabı ve fırınların çektiği gücü sayar. Kapalıyken sistem sadece şarj olur.",
+    "Sandbox_OffGrid_SnowRate": "Kar birikmesi (%%)",
+    "Sandbox_OffGrid_SnowRate_tooltip": "Camın ne kadar hızlı karla kaplandığı. 0 hiç birikmez demek. Çatı panelleri bu ayar ne olursa olsun daha hızlı toplar, daha geç atar.",
+    "Sandbox_OffGrid_SoilRate": "Toz birikmesi (%%)",
+    "Sandbox_OffGrid_SoilRate_tooltip": "Kirin üretimi ne kadar hızlı düşürdüğü. Yağmur her hâlükârda yıkar."
+}
