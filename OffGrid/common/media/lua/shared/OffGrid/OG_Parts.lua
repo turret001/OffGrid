@@ -51,6 +51,15 @@ function P.sandbox(name)
     return v
 end
 
+--- ANOTHER mod's sandbox page, as the table SandboxVars holds, or nil. Read
+--  here so this file stays the one place that touches SandboxVars; it has no
+--  defaults to fall back on, because those options are not ours to declare.
+function P.foreignSandbox(page)
+    local sv = SandboxVars and SandboxVars[page]
+    if type(sv) ~= "table" then return nil end
+    return sv
+end
+
 --- The bank capacity multiplier, and the only reader of it. Installing and
 --  removing batteries, the simulation, the seeder and every panel must agree
 --  on how big a rack is, or a charge is kept against one capacity and handed

@@ -7,7 +7,7 @@ generator.
 - **Steam Workshop:** https://steamcommunity.com/sharedfiles/filedetails/?id=3789425624
 - **How it works:** see the [wiki](https://github.com/turret001/OffGrid/wiki)
 - **FAQ:** [short answers to common questions](https://github.com/turret001/OffGrid/wiki/FAQ)
-- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 2.10.0 · **Game:** Build 42
+- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 2.10.1 · **Game:** Build 42
 
 ![Build your first rig](images/01-build-your-first-rig.png)
 

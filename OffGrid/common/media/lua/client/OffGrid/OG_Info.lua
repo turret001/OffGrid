@@ -238,6 +238,14 @@ local function specRows(obj, info, d)
         end
         add(getText("IGUI_OffGrid_InfoBanks"),
             P.count("IGUI_OffGrid_BankLine", d.bankCount or 0))
+        -- How far the power goes: the game's generator range. Red when LG
+        -- Extended Electricity has taken that range over and left it at one
+        -- tile (OG_Interop); OG_Info:refresh adds the reason under the rows.
+        local I = OffGrid.Interop
+        local reach = I and I.generatorRange and I.generatorRange() or 20
+        local short = I and I.lgeeTakeover and I.lgeeTakeover()
+        add(getText("IGUI_OffGrid_InfoReach"),
+            P.count("IGUI_OffGrid_TileCount", reach), short and "bad" or nil)
     end
 
     return rows
@@ -310,6 +318,13 @@ function OG_Info:refresh()
     self.info = info
     self.desc = wrap(describeText(info), WIDTH - PAD * 2 - px(16))
     self.rows = specRows(self.object, info, d)
+    -- A reason too long for a row, wrapped under the rows in the same card:
+    -- why the reach row above it is red (OG_Interop.lgeeTakeover).
+    self.notes = {}
+    local I = OffGrid.Interop
+    if info.kind == "controller" and I and I.lgeeTakeover and I.lgeeTakeover() then
+        self.notes = wrap(getText("IGUI_OffGrid_InfoLgeeReach"), WIDTH - PAD * 2 - px(16))
+    end
     -- Wrapped to the card like the description. A connection's line names
     -- the way there now ("Monocrystalline Roof Panel, 1 tile south, 3 tiles
     -- east, 1 floor down"), which runs past the window's edge in one line. A
@@ -332,7 +347,7 @@ function OG_Info:refresh()
     -- bar as it grows.
     local h = self:titleBarHeight() + px(13) + PAD
     if #self.desc > 0 then h = h + px(14) + #self.desc * ROW + PAD end
-    h = h + px(22) + #self.rows * ROW + PAD
+    h = h + px(22) + (#self.rows + #self.notes) * ROW + PAD
     h = h + px(22) + #self.wiring * ROW + PAD
     self:setHeight(h)
 end
@@ -356,7 +371,8 @@ function OG_Info:prerender()
         y = y + px(14) + #self.desc * ROW + PAD
     end
 
-    self:card(PAD, y, w - PAD * 2, px(22) + #self.rows * ROW)
+    local notes = self.notes or {}
+    self:card(PAD, y, w - PAD * 2, px(22) + (#self.rows + #notes) * ROW)
     self:label(getText("IGUI_OffGrid_InfoSpecs"), inset, y + px(5))
     local ry = y + px(22)
     for i = 1, #self.rows do
@@ -364,7 +380,11 @@ function OG_Info:prerender()
         self:textRight(self.rows[i].v, w - inset, ry, self.rows[i].col or "text")
         ry = ry + ROW
     end
-    y = y + px(22) + #self.rows * ROW + PAD
+    for i = 1, #notes do
+        self:text(notes[i], inset, ry, "bad")
+        ry = ry + ROW
+    end
+    y = y + px(22) + (#self.rows + #notes) * ROW + PAD
 
     self:card(PAD, y, w - PAD * 2, px(22) + #self.wiring * ROW)
     self:label(getText("IGUI_OffGrid_InfoWiring"), inset, y + px(5))

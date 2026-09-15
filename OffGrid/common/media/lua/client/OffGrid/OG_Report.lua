@@ -60,7 +60,7 @@ R.DISPLAY = "Off-Grid: Solar Power"
 -- Kept in step with mod.info by tests/test_report.py, which fails the build if
 -- the two ever disagree. A report that names the wrong version is worse than
 -- one that names none, because it sends whoever reads it to the wrong source.
-R.VERSION = "2.10.0"
+R.VERSION = "2.10.1"
 
 -- How far around the player to look for the mod's own objects. Matched to the
 -- link radius rather than picked, so the report covers the same ground a
@@ -256,6 +256,22 @@ function R.parts(playerObj)
     return { radius = R.SCAN_RADIUS, byType = counts, objects = found }
 end
 
+--- The reach the engine lights, and whether LG Extended Electricity has taken
+--  it over (OG_Interop). An empty LOADS page on a server running LGEE is this,
+--  and nothing else in the report would show it.
+function R.generator()
+    local I = OffGrid.Interop
+    if not (I and I.generatorRange and I.lgeeTakeover) then return "OG_Interop not loaded" end
+    -- Explicit branches, not `ok and v or msg`: lgeeTakeover's usual answer is
+    -- false, and that idiom would print it as a failure.
+    local out = {}
+    local ok, range = pcall(I.generatorRange)
+    if ok then out.range = range else out.range = "failed: " .. tostring(range) end
+    local ok2, takeover = pcall(I.lgeeTakeover)
+    if ok2 then out.lgeeTakeover = takeover else out.lgeeTakeover = "failed: " .. tostring(takeover) end
+    return out
+end
+
 --- Everything, assembled. Returned as a TABLE: Error Magnifier renders one
 --  with its own tableToString, which formats better than anything built here.
 function R.build()
@@ -265,6 +281,7 @@ function R.build()
         boot         = R.boot(),
         almanacRead  = player and OffGrid.Almanac.knows(player) or false,
         sandbox      = R.sandbox(),
+        generator    = R.generator(),
         environment  = R.env(),
         nearbyParts  = R.parts(player),
         multiplayer  = isClient() and true or false,

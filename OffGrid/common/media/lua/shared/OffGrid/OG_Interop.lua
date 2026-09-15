@@ -108,4 +108,66 @@ end
 -- is what makes late registration work at all.
 Events.OnGameBoot.Add(I.run)
 
+------------------------------------------------------------ the power reach
+
+--- The generator reach the engine lights, in tiles: vanilla's
+--  GeneratorTileRange, the same figure OG_System scans the LOADS page over.
+function I.generatorRange()
+    -- Wrapped: the monitor and the Info card ask this while they draw, and an
+    -- error there repeats every frame.
+    local ok, v = pcall(function()
+        local so = getSandboxOptions()
+        local opt = so and so:getOptionByName("GeneratorTileRange")
+        return opt and opt:getValue()
+    end)
+    v = ok and tonumber(v) or nil
+    if not v or v < 1 then return 20 end
+    return math.floor(v)
+end
+
+--- Has LG Extended Electricity taken the generator range over?
+--
+--  Its "Mod sets generator range" option, on by default, forces the game's
+--  own GeneratorTileRange to 1 and lights every running generator's circle
+--  through relays of its own. It skips the machines on its FOREIGN lists,
+--  which is exactly where I.registerLGEE puts the controller, unless Plysken
+--  Solar Revolution is running. So under the takeover a controller powers only
+--  the tiles beside it, the LOADS page scans that same radius and lists
+--  nothing, and nothing on screen said why (live server, 2026-09-15).
+--
+--  Judged on the effect as well as the option, the range really at 1: an LGEE
+--  from before the option leaves it nil, and a server that also runs Plysken
+--  Solar Revolution may light the circle after all, so neither is warned of.
+function I.lgeeTakeover()
+    if type(LGEE) ~= "table" then return false end
+    local sv = P.foreignSandbox("LGExtendedElectricity")
+    if not sv then return false end
+    if sv.Enabled == false or sv.TakeOverGeneratorRange ~= true then return false end
+    if P.foreignSandbox("PSR") then return false end
+    return I.generatorRange() <= 1
+end
+
+--- Said once a session in the console, which is where a server admin looks.
+function I.warnRange()
+    if I.warned or not I.lgeeTakeover() then return false end
+    I.warned = true
+    print("OffGrid: WARNING -- LG Extended Electricity's 'Mod sets generator range'"
+          .. " (LGExtendedElectricity.TakeOverGeneratorRange) is on, so the game's"
+          .. " generator range is 1 and every solar controller powers only the tiles"
+          .. " next to it. Set that option to false in the sandbox settings.")
+    return true
+end
+
+local function warnRangeSafely()
+    local ok, err = pcall(I.warnRange)
+    if not ok then
+        print("OffGrid: generator range check skipped (" .. tostring(err) .. ")")
+    end
+end
+
+-- Not at boot: LGEE writes the range while the world loads, and on a client
+-- the server's sandbox has not arrived by OnGameBoot.
+Events.OnGameStart.Add(warnRangeSafely)
+Events.OnServerStarted.Add(warnRangeSafely)
+
 return I

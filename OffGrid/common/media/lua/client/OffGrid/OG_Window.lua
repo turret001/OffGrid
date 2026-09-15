@@ -462,7 +462,20 @@ function OG_Window:pageLoads(s, x, y)
     local list = s.loadList
     local rowH = fontH(UIFont.CodeSmall) + px(3)
     local starred = false
-    if not list or #list == 0 then
+    local I = OffGrid.Interop
+    if (not list or #list == 0) and I and I.lgeeTakeover and I.lgeeTakeover() then
+        -- Nothing in reach because another mod took the reach away: LG
+        -- Extended Electricity's range takeover leaves the controller one tile
+        -- (OG_Interop). Said where the empty list is, or the page reads as a
+        -- broken monitor, which is how it was reported (2026-09-15).
+        y = y + px(6)
+        for _, key in ipairs({ "IGUI_OffGrid_LgeeReach", "IGUI_OffGrid_LgeeSets",
+                               "IGUI_OffGrid_LgeeSeeInfo" }) do
+            self:text(getText(key), x, y, "ink", UIFont.CodeSmall,
+                      key == "IGUI_OffGrid_LgeeReach" and 0.9 or 0.7)
+            y = y + rowH
+        end
+    elseif not list or #list == 0 then
         -- Nothing listed yet, or nothing in reach. The mark takes its own
         -- line: drawn in place in the taller CodeMedium, it sat on top of
         -- TOTAL on the rail below.
