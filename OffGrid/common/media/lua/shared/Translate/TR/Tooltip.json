@@ -18,6 +18,7 @@
     "Tooltip_OffGrid_CellCondition": "Durum",
     "Tooltip_OffGrid_CellEmpty": "Boş yuva. Buraya akü sürükle.",
     "Tooltip_OffGrid_CellHolds": "Kapasite",
+    "Tooltip_OffGrid_Coverage": "Bulunduğun kattaki kapsama alanı. Yeşil: elektrik veriliyor. Sarı: elektrik verilmiyor. Esc ile kapat.",
     "Tooltip_OffGrid_EqualiseReach": "Kontrol ünitesine fazla uzak.",
     "Tooltip_OffGrid_NeedParts": "Elektronik hurda ve vida gerekiyor.",
     "Tooltip_OffGrid_NeedRagWater": "Paçavra ve su lazım.",

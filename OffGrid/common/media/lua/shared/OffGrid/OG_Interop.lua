@@ -125,6 +125,17 @@ function I.generatorRange()
     return math.floor(v)
 end
 
+function I.generatorVerticalRange()
+    local ok, v = pcall(function()
+        local so = getSandboxOptions()
+        local opt = so and so:getOptionByName("GeneratorVerticalPowerRange")
+        return opt and opt:getValue()
+    end)
+    v = ok and tonumber(v) or nil
+    if not v or v < 0 then return 3 end
+    return math.floor(v)
+end
+
 --- Has LG Extended Electricity taken the generator range over?
 --
 --  Its "Mod sets generator range" option, on by default, forces the game's
@@ -135,26 +146,40 @@ end
 --  the tiles beside it, the LOADS page scans that same radius and lists
 --  nothing, and nothing on screen said why (live server, 2026-09-15).
 --
---  Judged on the effect as well as the option, the range really at 1: an LGEE
---  from before the option leaves it nil, and a server that also runs Plysken
---  Solar Revolution may light the circle after all, so neither is warned of.
+--  Require both restricted engine reach and takeover evidence. The saved mark
+--  keeps the warning valid after options are disabled but before restart.
+--  PSR combinations remain outside this diagnosis because they may supply relays.
 function I.lgeeTakeover()
     if type(LGEE) ~= "table" then return false end
     local sv = P.foreignSandbox("LGExtendedElectricity")
     if not sv then return false end
-    if sv.Enabled == false or sv.TakeOverGeneratorRange ~= true then return false end
     if P.foreignSandbox("PSR") then return false end
-    return I.generatorRange() <= 1
+    -- LGEE restores native ranges at boot, not when an admin flips the option.
+    -- Its persisted v1 mark reaches clients too; the authority also has latches.
+    local mark = type(sv.TakeoverMark) == "string" and sv.TakeoverMark or ""
+    if mark:sub(1, 3) ~= "v1:" then mark = "" end
+    mark = ":" .. mark .. ":"
+    -- A latch can be true even when the player chose range 1 originally.
+    -- An explicit unforced mark wins; only missing flags fall back to latches.
+    local forced = mark:find(":F1:", 1, true) ~= nil
+        or (not mark:find(":F0:", 1, true) and LGEE.takeoverLatched == true)
+    local forcedVertical = mark:find(":FV1:", 1, true) ~= nil
+        or (not mark:find(":FV0:", 1, true) and LGEE.verticalTakeoverLatched == true)
+    local horizontal = (sv.Enabled ~= false and sv.TakeOverGeneratorRange == true)
+        or forced
+    return (horizontal and I.generatorRange() <= 1)
+        or (forcedVertical and I.generatorVerticalRange() <= 1)
 end
 
 --- Said once a session in the console, which is where a server admin looks.
 function I.warnRange()
     if I.warned or not I.lgeeTakeover() then return false end
     I.warned = true
-    print("OffGrid: WARNING -- LG Extended Electricity's 'Mod sets generator range'"
-          .. " (LGExtendedElectricity.TakeOverGeneratorRange) is on, so the game's"
-          .. " generator range is 1 and every solar controller powers only the tiles"
-          .. " next to it. Set that option to false in the sandbox settings.")
+    print("OffGrid: WARNING -- LG Extended Electricity still restricts controller reach."
+          .. " Disable LGExtendedElectricity.TakeOverGeneratorRange and"
+          .. " LGExtendedElectricity.TakeOverGeneratorVerticalRange in sandbox settings,"
+          .. " then restart the server or reload the singleplayer save."
+          .. " Changing the options alone does not restore the range.")
     return true
 end
 

@@ -18,6 +18,7 @@
     "Tooltip_OffGrid_CellCondition": "Condition",
     "Tooltip_OffGrid_CellEmpty": "Empty bay. Drag a car battery here.",
     "Tooltip_OffGrid_CellHolds": "Holds",
+    "Tooltip_OffGrid_Coverage": "Coverage on your current floor. Green: supplying power. Amber: no power. Press Esc to hide.",
     "Tooltip_OffGrid_EqualiseReach": "Too far from the controller.",
     "Tooltip_OffGrid_NeedParts": "Needs electronics scrap and screws.",
     "Tooltip_OffGrid_NeedRagWater": "You need a rag and some water.",

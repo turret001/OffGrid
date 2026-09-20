@@ -11,6 +11,7 @@
 require "OffGrid/OG_Parts"
 require "OffGrid/OG_Actions"
 require "OffGrid/OG_Almanac"
+require "OffGrid/OG_Coverage"
 -- OG_Info requires this file back, so it cannot be required here.
 -- It registers itself on OffGrid.Info and is reached through that. The
 -- forecast window is reached the same way: OG_Forecast loads after this file
@@ -253,6 +254,15 @@ function C.onFill(playerNum, context, worldobjects, test)
     if part == "controller" then
         menu:addOption(getText("ContextMenu_OffGrid_Monitor"), worldobjects,
                        C.onMonitor, target, playerObj)
+        local coverage = OffGrid.Coverage
+        if coverage then
+            local key = coverage.isSelected(target, playerObj)
+                and "ContextMenu_OffGrid_HideCoverage" or "ContextMenu_OffGrid_ShowCoverage"
+            local option = menu:addOption(getText(key), target, coverage.toggle, playerObj)
+            local tip = ISWorldObjectContextMenu.addToolTip()
+            tip.description = getText("Tooltip_OffGrid_Coverage")
+            option.toolTip = tip
+        end
         local d = P.data(target)
         if d.trip then
             menu:addOption(getText("ContextMenu_OffGrid_Reset"), worldobjects,
