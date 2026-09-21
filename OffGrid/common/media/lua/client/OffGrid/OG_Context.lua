@@ -165,6 +165,7 @@ local function statusText(obj, part)
         -- 20 C figure a cold morning read over 100% charged.
         local scale = P.bankScale()
         local tempC = (OffGrid.Env and OffGrid.Env.read().temperature) or 20
+        tempC = (OffGrid.Env and OffGrid.Env.tempAt(obj, tempC)) or tempC
         local cap = M.bankCapacity({ tier = info and info.tier,
                                      cellSum = P.cellSum(d),
                                      scale = scale }, tempC)

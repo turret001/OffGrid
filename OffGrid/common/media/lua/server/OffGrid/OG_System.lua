@@ -63,6 +63,21 @@ local MAX_CATCHUP_HOURS = 72
 local POWER_HOLD = 5
 
 local SLICES = 60           -- in-game minutes a full load scan is spread over
+-- Squares each side of a player re-read EVERY tick, on the player's own floor.
+-- The sweep above is the only thing that keeps the total honest, but it takes
+-- a whole 41-slice pass to come back to any one square, so an appliance the
+-- player just switched sat wrong on the LOADS page for most of an in-game
+-- hour. This is the cheap half of the answer: nobody reads the panel about a
+-- stove they are not standing near, and 7x7 squares a tick is nothing beside
+-- the 41x41x7 cylinder.
+local NEAR = 3
+-- Rows the LOADS page can print before it runs out of LCD.
+local LOAD_ROWS = 9
+-- Cell blocks the BATT page can draw. The page sizes its blocks from the
+-- measured width of "100" and fits two rows, so this is the most any client
+-- will put on screen; d.cells still carries the true bank size, so the page
+-- can say how many it was not sent.
+local BATT_CELLS = 18
 local SYNC_EVERY = 10       -- in-game minutes between multiplayer pushes
 local REACH = 3             -- squares; arm's length, the same rule the menus use
 
@@ -73,6 +88,7 @@ local REACH = 3             -- squares; arm's length, the same rule the menus us
 local DRAW = {
     fridge = 120, freezer = 150, fridgefreezer = 200,
     light = 55, stove = 1400, microwave = 900,
+    toaster = 800, coffeemaker = 1000, pump = 500,
     washer = 480, dryer = 1800, washerdryer = 1200,
     radio = 22, tv = 95, charger = 250,
 }
@@ -135,14 +151,79 @@ local UNKNOWN_WATTS_PER_UNIT = 5000
 --  rated watts, and whether the kind is refrigeration; nil for anything
 --  the ladder cannot name (those still bill as "other" when running, but
 --  an unknown idle object has no rated number worth printing).
+-- Countertop cooking appliances the engine calls IsoStove. They carry
+-- IsoType = IsoStove and NO container at all, so CellLoader's own isStove test
+-- never sees them but ISMoveableSpriteProps does: put one down and it bills at
+-- the oven's 1400 W. isMicrowave() cannot tell them apart either, because it
+-- reads getContainer():isMicrowave() and their container is nil. The tile's own
+-- GroupName and CustomName are the only thing left, and they are raw tiledef
+-- data rather than anything translated, so they are safe to match on.
+local COUNTERTOP = {
+    ["Small Chrome Toaster"] = "toaster",
+    ["Coffee X-press"]       = "coffeemaker",
+    ["Espresso Deluxe"]      = "coffeemaker",
+}
+
+--- One sprite property of a world object, or nil.
+local function spriteProp(obj, name)
+    local spr = try(obj, "getSprite")
+    local props = spr and try(spr, "getProperties")
+    if not props or not try(props, "has", name) then return nil end
+    return try(props, "get", name)
+end
+
+--- The name a tile gives itself: "GroupName CustomName", the same pair the
+--  game builds its moveable display name from.
+local function tileName(obj)
+    local g = spriteProp(obj, "GroupName")
+    local c = spriteProp(obj, "CustomName")
+    if not g and not c then return nil end
+    return ((g or "") .. " " .. (c or "")):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
 local function classify(obj)
     local fridge = try(obj, "getContainerByType", "fridge")
     local freezer = try(obj, "getContainerByType", "freezer")
     if fridge and freezer then return "fridgefreezer", DRAW.fridgefreezer, true end
     if fridge then return "fridge", DRAW.fridge, true end
     if freezer then return "freezer", DRAW.freezer, true end
+    -- The third thing vanilla itself bills, after fridges and freezers: piped
+    -- fuel makes couldBePoweredByGenerator true and getGeneratorPowerConsumption
+    -- answer 0.03, so a gas pump always reached the page, but as OTHER, which
+    -- tells the player nothing. A gas station is a common base.
+    if (try(obj, "getPipedFuelAmount") or 0) > 0 then
+        return "pump", DRAW.pump, false
+    end
     if instanceof(obj, "IsoLightSwitch") then return "light", DRAW.light, false end
-    if instanceof(obj, "IsoStove") then return "stove", DRAW.stove, false end
+    if instanceof(obj, "IsoStove") then
+        -- A microwave is an IsoStove too, so this test has to come first or
+        -- every microwave bills at the oven's rate under the oven's name.
+        -- Worse than the wrong number: the LOADS row is keyed by kind, and an
+        -- idle kind is hidden whenever that kind also has something running
+        -- (writePages), so a microwave sharing "stove" with a lit oven
+        -- disappears from the page entirely. Both tiles are IsoStove by the
+        -- tiledefs' own IsoType, which ISMoveableSpriteProps honours on
+        -- placement (corpus lua, line 2161); CellLoader's narrower isStove
+        -- test does not, which is why a map-spawned microwave draws nothing
+        -- and the same microwave put down by a player draws 1400 W.
+        if try(obj, "isMicrowave") then return "microwave", DRAW.microwave, false end
+
+        -- No container at all is what marks the countertop appliances out: an
+        -- oven has a stove container and a microwave has a microwave one.
+        if not try(obj, "getContainer") then
+            local kind = COUNTERTOP[tileName(obj) or ""]
+            if kind then return kind, DRAW[kind], false end
+            -- Something else small enough to stand on a worktop, which this
+            -- list has never heard of. Naming it an oven would be a guess with
+            -- a 1400 W price on it, so let it fall through to "other", where
+            -- the bill is scaled from what the engine actually reports rather
+            -- than from a nameplate we made up. A floor-standing IsoStove with
+            -- no container is a real oven (Bake-O-Matic) and keeps its name.
+            if spriteProp(obj, "IsTableTop") ~= nil then return nil end
+        end
+
+        return "stove", DRAW.stove, false
+    end
     if instanceof(obj, "IsoStackedWasherDryer") then
         return "washerdryer", DRAW.washerdryer, false
     end
@@ -173,6 +254,19 @@ end
 local function objectDraw(obj)
     if not obj then return 0 end
     if not try(obj, "couldBePoweredByGenerator") then return 0 end
+
+    -- A battery radio is not on your supply and never will be. IsoRadio
+    -- answers 0.01 only when the set is on AND not battery powered
+    -- (IsoRadio.java:29-31), so without this it sits on the LOADS page for
+    -- ever, dim, at a rated draw it can never take, and switching it on does
+    -- nothing. A bare 0 keeps it off the page entirely, the way anything that
+    -- is not an appliance is kept off. Deliberately narrow: IsoTelevision
+    -- ignores the battery flag and bills whenever it is on
+    -- (IsoTelevision.java:225-227), so a set that is not a radio is left alone.
+    if instanceof(obj, "IsoRadio") then
+        local dd = try(obj, "getDeviceData")
+        if dd and try(dd, "getIsBatteryPowered") then return 0 end
+    end
     local kind, rated, coldKind = classify(obj)
 
     -- Before the hydro shutoff the grid is still paying for this appliance, so
@@ -935,8 +1029,79 @@ end
 --- Fold the per-square kind splits into one table for the LOADS page, over a
 --  cache that only holds squares that actually draw something or hold an
 --  idle appliance, so this is a handful of entries.
+--- Re-read one square into `rec.drawn`, and answer what it draws.
+--
+--  The one place an appliance becomes a number. Both callers want the same
+--  work done and the same cache entry written; they differ only in what they
+--  do with the answer, so the accumulation stays with them.
+local function readSquare(rec, x, y, z)
+    local s = getSquare(x, y, z)
+    local k = key(x, y, z)
+    if not s then
+        -- Not streamed in. Use what this square drew the last time it was, so
+        -- the total does not depend on where the player happens to be
+        -- standing. No invalidation is needed: nothing can be added to a
+        -- square whose chunk is not in memory.
+        local c = rec.drawn[k]
+        if c then return c.w, c.cold end
+        return 0, 0
+    end
+
+    local w, cold = 0, 0
+    local kinds, idle = nil, nil
+    local objs = s:getObjects()
+    for i = 0, objs:size() - 1 do
+        -- Locals, deliberately. A Lua multi-return collapses to its first
+        -- value anywhere but the final argument slot, so folding this into the
+        -- addition below would silently drop the rest.
+        local ow, isCold, kk, rated = objectDraw(objs:get(i))
+        w = w + ow
+        if isCold then cold = cold + ow end
+        if ow > 0 then
+            kinds = kinds or {}
+            kinds[kk] = (kinds[kk] or 0) + ow
+        elseif kk and rated then
+            -- present but not running: the LOADS page lists it dim, at its
+            -- rated draw
+            idle = idle or {}
+            idle[kk] = (idle[kk] or 0) + rated
+        end
+    end
+
+    -- Remember, but only what is worth remembering: an empty square is the
+    -- overwhelming majority of a 41x41x7 cylinder and holding a zero for each
+    -- of them would be a table of 11,767 entries per controller. A square with
+    -- an idle appliance earns its entry the same way a drawing one does; both
+    -- are rare.
+    if w > 0 or idle then
+        -- The kind split rides in the same cache, so squares in unloaded
+        -- chunks keep their itemised entry on the LOADS page, exactly as they
+        -- keep their watts in the total.
+        rec.drawn[k] = { w = w, cold = cold, kinds = kinds, idle = idle }
+    else
+        rec.drawn[k] = nil
+    end
+    return w, cold
+end
+
+--  Returns the cache's own total and cold total as well. Summing `rec.drawn`
+--  is exactly what a completed sweep accumulates into `rec.scanLoad`, because
+--  every square the sweep visits leaves its entry here and an unloaded one
+--  keeps the entry it had. That is what lets a targeted re-read republish a
+--  correct total without waiting for the sweep to come round again.
+--- What the cache adds up to, without publishing anything.
+local function cacheTotals(rec)
+    local total, coldTotal = 0, 0
+    for _, e in pairs(rec.drawn) do
+        total = total + (e.w or 0)
+        coldTotal = coldTotal + (e.cold or 0)
+    end
+    return total, coldTotal
+end
+
 local function foldKinds(rec)
     local kindsum, idlesum = {}, {}
+    local total, coldTotal = cacheTotals(rec)
     for _, e in pairs(rec.drawn) do
         if e.kinds then
             for kk, kw in pairs(e.kinds) do
@@ -951,6 +1116,104 @@ local function foldKinds(rec)
     end
     rec.kinds = kindsum
     rec.idleKinds = idlesum
+    return total, coldTotal
+end
+
+--- Every player the simulation can see, on either side of the network.
+--
+--  `getOnlinePlayers` is the server's list; in single player it is the split
+--  screen that makes this more than one, and `getNumActivePlayers` is what
+--  counts those. Both are measured present on the client and the server.
+local function eachPlayer(fn)
+    if isServer() then
+        local ps = getOnlinePlayers and getOnlinePlayers()
+        for i = 0, (ps and ps:size() or 0) - 1 do
+            local p = ps:get(i)
+            if p then fn(p) end
+        end
+        return
+    end
+    local n = getNumActivePlayers and getNumActivePlayers() or 1
+    for i = 0, n - 1 do
+        local p = getSpecificPlayer and getSpecificPlayer(i)
+        if p then fn(p) end
+    end
+end
+
+--- Re-read the squares the players are standing among, every tick.
+--
+--  The sweep in S.scanSlice is what keeps the total honest over the whole
+--  cylinder, but it only comes back to any one square once a pass, which is 41
+--  in-game minutes at the default range. That is how a stove switched off
+--  stayed lit on the LOADS page for most of an in-game hour, and how a
+--  microwave a player was standing next to took the same to appear.
+--
+--  Nobody reads the panel about an appliance they are nowhere near, so the fix
+--  is not to sweep harder: it is to re-read the handful of squares a player is
+--  actually among, every tick, and republish from the cache. 7x7 on the
+--  player's own floor is 49 squares against the sweep's 11,767, and it only
+--  runs for a controller whose reach the player is standing in.
+--
+--  The total is republished from the whole cache rather than from this
+--  handful, so it stays a figure for the entire system. It is held back until
+--  the first sweep has finished: until then the cache is only the part of the
+--  cylinder that has been walked, and publishing from it would drop a saved
+--  controller's demand to whatever happens to be near the player.
+function S.scanNear(rec)
+    if not rec.drawn then return end
+    local radius = powerRadius()
+    local r2 = radius * radius
+    local vr = powerLevels()
+    local touched = false
+
+    eachPlayer(function(p)
+        local sq = p:getCurrentSquare()
+        if not sq then return end
+        local px, py, pz = sq:getX(), sq:getY(), sq:getZ()
+        local ddx, ddy, ddz = px - rec.x, py - rec.y, pz - rec.z
+        -- Only a controller whose powered cylinder the player is standing in.
+        if ddx * ddx + ddy * ddy > r2 then return end
+        if ddz < -vr or ddz > vr then return end
+
+        for dx = -NEAR, NEAR do
+            for dy = -NEAR, NEAR do
+                local x, y = px + dx, py + dy
+                local cx, cy = x - rec.x, y - rec.y
+                -- Still has to be inside the controller's own reach: a square
+                -- just outside it is not this controller's business.
+                if cx * cx + cy * cy <= r2 then
+                    readSquare(rec, x, y, pz)
+                    touched = true
+                end
+            end
+        end
+    end)
+
+    if not touched then return end
+
+    -- Publish under the same two rules the first sweep publishes under, or
+    -- this undoes them. A controller loaded from a save carries last
+    -- session's demand and appliance list, and until the first sweep has been
+    -- all the way round, the cache holds only the squares it has walked plus
+    -- the handful beside the player. Replacing a saved nine-row list with
+    -- that is how a full page turns into a short one for the rest of the
+    -- sweep, which reads exactly like the page having stopped updating.
+    local total, coldTotal = cacheTotals(rec)
+    if rec.swept or rec.listPending then foldKinds(rec) end
+    if rec.swept then
+        rec.load = total
+        rec.cold = coldTotal
+    else
+        -- Before the first sweep finishes the cache is only the part of the
+        -- cylinder that has been walked, so the same rule the first sweep uses
+        -- applies here: the total may rise to what has been seen, and may
+        -- never fall below the demand a save carried in. Raising it matters as
+        -- much as not lowering it. foldKinds has just published rows for the
+        -- appliances beside the player, and a page that itemises 1800 W under
+        -- a TOTAL of nothing is worse than either number alone.
+        rec.load = math.max(rec.load or 0, total)
+        rec.cold = math.max(rec.cold or 0, coldTotal)
+    end
 end
 
 --- One slice of the appliance load scan. Walks a fraction of the rows each
@@ -976,60 +1239,9 @@ function S.scanSlice(rec)
             if dx * dx + dy * dy <= r2 then
                 for dz = -vr, vr do
                     local x, y, z = rec.x + dx, rec.y + dy, rec.z + dz
-                    local s = getSquare(x, y, z)
-                    local k = key(x, y, z)
-                    if s then
-                        local w, cold = 0, 0
-                        local kinds, idle = nil, nil
-                        local objs = s:getObjects()
-                        for i = 0, objs:size() - 1 do
-                            -- Locals, deliberately. A Lua multi-return
-                            -- collapses to its first value anywhere but the
-                            -- final argument slot, so folding this into the
-                            -- addition below would silently drop the rest.
-                            local ow, isCold, kk, rated = objectDraw(objs:get(i))
-                            w = w + ow
-                            if isCold then cold = cold + ow end
-                            if ow > 0 then
-                                kinds = kinds or {}
-                                kinds[kk] = (kinds[kk] or 0) + ow
-                            elseif kk and rated then
-                                -- present but not running: the LOADS page
-                                -- lists it dim, at its rated draw
-                                idle = idle or {}
-                                idle[kk] = (idle[kk] or 0) + rated
-                            end
-                        end
-                        -- Remember, but only what is worth remembering: an
-                        -- empty square is the overwhelming majority of a
-                        -- 41x41x7 cylinder and holding a zero for each of them
-                        -- would be a table of 11,767 entries per controller.
-                        -- A square with an idle appliance earns its entry the
-                        -- same way a drawing one does; both are rare.
-                        if w > 0 or idle then
-                            -- The kind split rides in the same cache, so
-                            -- squares in unloaded chunks keep their itemised
-                            -- entry on the LOADS page, exactly as they keep
-                            -- their watts in the total.
-                            rec.drawn[k] = { w = w, cold = cold, kinds = kinds,
-                                             idle = idle }
-                        else
-                            rec.drawn[k] = nil
-                        end
-                        rec.scanLoad = rec.scanLoad + w
-                        rec.scanCold = rec.scanCold + cold
-                    else
-                        -- Not streamed in. Use what this square drew the last
-                        -- time it was, so the total does not depend on where
-                        -- the player happens to be standing. No invalidation is
-                        -- needed: nothing can be added to a square whose chunk
-                        -- is not in memory.
-                        local c = rec.drawn[k]
-                        if c then
-                            rec.scanLoad = rec.scanLoad + c.w
-                            rec.scanCold = rec.scanCold + c.cold
-                        end
-                    end
+                    local w, cold = readSquare(rec, x, y, z)
+                    rec.scanLoad = rec.scanLoad + w
+                    rec.scanCold = rec.scanCold + cold
                 end
             end
         end
@@ -1194,7 +1406,9 @@ local function gather(rec, env)
             local spec = M.bankSpec(info.tier)
             byTier.bank[info.tier] = (byTier.bank[info.tier] or 0) + 1
             local shape = { tier = info.tier, cellSum = P.cellSum(d), scale = bankScale }
-            local c = M.bankCapacity(shape, env.temperature)
+            -- This rack's own air, not the county's: a bank indoors, or
+            -- beside a lit fire, is not as cold as the weather.
+            local c = M.bankCapacity(shape, E.tempAt(o, env.temperature))
             local nom = M.bankNominalWh(shape)
             cap = cap + c
             nominal = nominal + nom
@@ -1247,10 +1461,12 @@ local function scatter(rec, bank, env, healthDelta)
         local o = rec.banks[i]
         local info = P.describe(o)
         local d = P.data(o)
+        -- Per rack, so a system split between a cold shed and a warm room
+        -- puts its charge where it will actually be held.
         caps[i] = info and M.bankCapacity({ tier = info.tier,
                                             cellSum = P.cellSum(d),
                                             scale = bankScale },
-                                          env.temperature) or 0
+                                          E.tempAt(o, env.temperature)) or 0
         noms[i] = info and M.bankNominal({ tier = info.tier, scale = bankScale,
                                            cellList = d.cellList }) or 0
         total = total + noms[i]
@@ -1656,18 +1872,33 @@ local function writePages(rec, d, env, tel, sliceToday)
         end
         table.sort(il, function(a, b) return a.w > b.w end)
         for i = 1, #il do ll[#ll + 1] = il[i] end
-        while #ll > 9 do table.remove(ll) end
+        -- The LCD has room for nine rows. Dropping everything past the ninth
+        -- without a word left the itemisation adding up to less than TOTAL
+        -- with nothing on the page to say why, and the rows are sorted by
+        -- watts, so it was always the small ones that vanished. The last row
+        -- now carries the count and the summed watts of what did not fit.
+        if #ll > LOAD_ROWS then
+            local n, w = 0, 0
+            for i = LOAD_ROWS, #ll do n = n + 1; w = w + ll[i].w end
+            for i = #ll, LOAD_ROWS, -1 do table.remove(ll, i) end
+            ll[LOAD_ROWS] = { k = "more", w = w, more = n }
+        end
         d.loadList = ll
     end
 
     -- BATT: every cell's health across the wired banks, in bank order, capped
-    -- at what the screen can show.
+    -- at what the screen can show. Twelve was one row of the old single-row
+    -- strip, and it silently truncated a chained bank: sixteen cells arrived
+    -- as twelve and the page had no way to know the rest existed (reported
+    -- 2026-09-21). The page wraps now and holds two rows of twelve, so the cap
+    -- is what it can draw. `d.cells` still carries the true count, so the page
+    -- can say how many it was not sent.
     local cellsOut = {}
     for i = 1, #rec.banks do
         local bd = P.data(rec.banks[i])
         local list = bd.cellList or {}
         for n = 1, #list do
-            if #cellsOut < 12 then
+            if #cellsOut < BATT_CELLS then
                 cellsOut[#cellsOut + 1] =
                     math.floor((list[n].health or 1) * 100 + 0.5)
             end
@@ -1770,6 +2001,9 @@ function S.updateController(rec, dt, hoursAgo, wet)
         S.relink(rec)
     end
     S.scanSlice(rec)
+    -- After the slice, so a square this tick's slice just walked is not
+    -- read twice, and so the republish sees the slice's own work.
+    S.scanNear(rec)
 
     local arrays, panels, bank, byTier, shaded = gather(rec, env)
     local lvdBefore = d.lvd == true

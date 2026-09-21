@@ -82,6 +82,42 @@ function E.read()
     return env
 end
 
+--- The air temperature where a thing actually stands, not the county's.
+--
+--  A battery's capacity depends on how cold the battery is, and a bank in a
+--  room is not as cold as the weather. The engine already models this and
+--  reads it for its own crafting and vehicle-engine temperatures:
+--  getAirTemperatureForSquare starts from the climate figure and then, for a
+--  square in a room, pulls it toward 22 C by 40 to 60 percent of the gap, a
+--  little less above the ground floor. A building still on the town supply
+--  sits at 22 C outright. Measured in game on 2026-09-21: 17.92 C outside and
+--  19.66 C in a room, matching the watch to a tenth.
+--
+--  The same method folds in the highest nearby heat source
+--  (IsoCell.getHeatSourceHighestTemperature, with radius falloff and a line of
+--  sight test), so a lit fire beside the rack counts. Measured beside a firepit
+--  on 2026-09-21: county 26.44 C, the square 30.81 C, and the falloff visible
+--  across neighbouring squares from 31.44 C one step toward the fire down to
+--  29.56 C two steps away. A first check appeared to show nothing, which is
+--  why this comment once said the opposite; that reading was taken out of
+--  range of the fire.
+--
+--  `fallback` is the county figure to use when there is no square to ask
+--  about, which is a rack in an unloaded chunk.
+function E.tempAt(obj, fallback)
+    local cm = getClimateManager and getClimateManager()
+    if not cm or not cm.getAirTemperatureForSquare then return fallback end
+    local sq = obj
+    if obj and obj.getSquare then
+        local ok, s = pcall(obj.getSquare, obj)
+        sq = ok and s or nil
+    end
+    if not sq then return fallback end
+    local ok, t = pcall(cm.getAirTemperatureForSquare, cm, sq)
+    if ok and type(t) == "number" and M.finite(t) then return t end
+    return fallback
+end
+
 --- Whether a square can see the sky. An array under a roof makes nothing.
 function E.isSunlit(square)
     if not square then return false end

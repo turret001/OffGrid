@@ -174,7 +174,9 @@ local function specRows(obj, info, d)
         -- maintains (so Holding read past Capacity), and at -10 C the shown
         -- figure was the summer one.
         local scale = P.bankScale()
+        -- The rack's own air, the same figure the simulation fills it to.
         local tempC = (OffGrid.Env and OffGrid.Env.read().temperature) or 20
+        tempC = (OffGrid.Env and OffGrid.Env.tempAt(obj, tempC)) or tempC
         add(getText("IGUI_OffGrid_InfoCells"),
             string.format("%d / %d", d.cells or 0, P.cellCap(obj)))
         add(getText("IGUI_OffGrid_InfoPerCell"), string.format("%d Wh", spec.wh))

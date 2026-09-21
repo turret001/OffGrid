@@ -130,6 +130,24 @@ function OG_Window:textCentre(str, x, y, col, font, alpha)
                         font or UIFont.CodeSmall)
 end
 
+--- How wide a string actually is in a font.
+--
+--  The engine measures it; the fallback is the same glyph model the panel test
+--  uses, for a headless run where getTextManager is stubbed out. Layout that
+--  guesses at this is layout that crams: the cell grid sized its blocks from a
+--  hand-picked 24 px and drew 24.1 px blocks under 27 px numbers.
+local function textW(str, font)
+    local tm = getTextManager and getTextManager()
+    if tm and tm.MeasureStringX then
+        local ok, w = pcall(tm.MeasureStringX, tm, font or UIFont.CodeSmall,
+                            tostring(str))
+        if ok and type(w) == "number" and w > 0 then return w end
+    end
+    local tm2 = getTextManager and getTextManager()
+    local h = tm2 and tm2:getFontHeight(font or UIFont.CodeSmall) or 12
+    return #tostring(str) * math.floor(h * 0.6)
+end
+
 local function fontH(font)
     return getTextManager():getFontHeight(font)
 end
@@ -482,19 +500,30 @@ function OG_Window:pageLoads(s, x, y)
         self:text("--", x, y + px(6), "ink", UIFont.CodeMedium, 0.6)
         y = y + px(6) + fontH(UIFont.CodeMedium)
     else
-        for i = 1, math.min(#list, 9) do
+        -- However many the server sent: it caps the list to what fits and
+        -- puts what did not into a final row of its own, rather than leaving
+        -- the client to drop rows the total still counts.
+        for i = 1, #list do
             local e = list[i]
-            local lab = getText("IGUI_OffGrid_Load_" .. tostring(e.k))
-            -- refrigeration never idles by choice; the star says so
-            if COMPRESSOR[e.k] then
-                lab = lab .. " *"
-                starred = true
+            if e.more then
+                self:text("...", x, y, "ink", UIFont.CodeSmall, 0.45)
+                self:text(P.txt("IGUI_OffGrid_LoadMore", e.more),
+                          x + px(34), y, "ink", UIFont.CodeSmall, 0.45)
+                self:textRight(fmtW(e.w), x + iw, y, "ink",
+                               UIFont.CodeSmall, 0.45)
+            else
+                local lab = getText("IGUI_OffGrid_Load_" .. tostring(e.k))
+                -- refrigeration never idles by choice; the star says so
+                if COMPRESSOR[e.k] then
+                    lab = lab .. " *"
+                    starred = true
+                end
+                local a = e.idle and 0.45 or 1
+                self:text(e.idle and "[ ]" or "[#]", x, y, "ink",
+                          UIFont.CodeSmall, e.idle and 0.45 or 0.8)
+                self:text(lab, x + px(34), y, "ink", UIFont.CodeSmall, a)
+                self:textRight(fmtW(e.w), x + iw, y, "ink", UIFont.CodeSmall, a)
             end
-            local a = e.idle and 0.45 or 1
-            self:text(e.idle and "[ ]" or "[#]", x, y, "ink",
-                      UIFont.CodeSmall, e.idle and 0.45 or 0.8)
-            self:text(lab, x + px(34), y, "ink", UIFont.CodeSmall, a)
-            self:textRight(fmtW(e.w), x + iw, y, "ink", UIFont.CodeSmall, a)
             y = y + rowH
         end
     end
@@ -554,19 +583,68 @@ function OG_Window:pageBatt(s, x, y)
               UIFont.CodeSmall, 0.7)
     y = y + fontH(UIFont.CodeSmall) + px(8)
 
-    -- per-cell condition blocks
+    -- Per-cell condition blocks, wrapped.
+    --
+    --  Banks chain, so the cell count is not bounded by one rack's bays: a
+    --  sixteen-cell bank divided the row into slivers too narrow to read the
+    --  three digits each block exists to show (reported 2026-09-21). The row
+    --  is filled to a legible block width and then wrapped, and the rows are
+    --  balanced rather than greedily filled, because eight and eight reads
+    --  better than twelve and four and leaves both rows wider.
     local cells = s.bankCells
     if cells and #cells > 0 then
         local n = #cells
         local gap = px(5)
-        local cw = math.floor((iw - (n - 1) * gap) / n)
-        for i = 1, n do
-            local ccx = x + (i - 1) * (cw + gap)
-            self:drawRectBorder(ccx, y, cw, px(30), 0.25, c("ink"))
-            self:textCentre(tostring(cells[i]), ccx + cw / 2, y + px(2), "ink",
-                            UIFont.CodeSmall)
+        local blockH, rowGap = px(30), px(6)
+        -- Wide enough for the three digits the block exists to show, measured
+        -- rather than guessed, plus a little air each side.
+        local minW = textW("100", UIFont.CodeSmall) + px(6)
+        local maxPerRow = math.max(1, math.floor((iw + gap) / (minW + gap)))
+
+        -- How many rows fit above the CELL CONDITION % footer. This has to be
+        -- known BEFORE the rows are balanced: balancing first picks a row
+        -- count the page may not have room for, and then spreads the cells
+        -- thinner than they needed to be across the rows it does have.
+        local footTop = MID_Y + LCD_H - px(14) - fontH(UIFont.CodeSmall)
+        local maxRows = math.max(1,
+            math.floor((footTop - y - px(6)) / (blockH + rowGap)))
+
+        -- Balance within what actually fits: as few rows as the legible block
+        -- width allows, then as few blocks per row as those rows need.
+        local rows = math.min(maxRows, math.max(1, math.ceil(n / maxPerRow)))
+        local perRow = math.min(maxPerRow, math.max(1, math.ceil(n / rows)))
+
+        -- The count on the header is the whole bank; the list is what the
+        -- server had room to send. Counting the overflow from the header means
+        -- the block says how many cells are missing, not just how many this
+        -- page ran out of space for.
+        local total = tonumber(s.cells) or n
+        if total < n then total = n end
+        local capacity = maxRows * perRow
+        local shown = n
+        if shown > capacity then shown = capacity end
+        local over = total - shown
+        if over > 0 and shown >= capacity then shown = math.max(0, capacity - 1) end
+        over = total - shown
+
+        local cw = math.floor((iw - (perRow - 1) * gap) / perRow)
+        local function blockAt(i)
+            return x + ((i - 1) % perRow) * (cw + gap),
+                   y + math.floor((i - 1) / perRow) * (blockH + rowGap)
+        end
+        for i = 1, shown do
+            local ccx, ccy = blockAt(i)
+            self:drawRectBorder(ccx, ccy, cw, blockH, 0.25, c("ink"))
+            self:textCentre(tostring(cells[i]), ccx + cw / 2, ccy + px(2),
+                            "ink", UIFont.CodeSmall)
             local fw = math.floor((cw - px(8)) * M.clamp(cells[i] / 100, 0, 1))
-            self:drawRect(ccx + px(4), y + px(22), fw, px(3), 0.9, c("ink"))
+            self:drawRect(ccx + px(4), ccy + px(22), fw, px(3), 0.9, c("ink"))
+        end
+        if over > 0 then
+            local ccx, ccy = blockAt(shown + 1)
+            self:drawRectBorder(ccx, ccy, cw, blockH, 0.25, c("ink"))
+            self:textCentre("+" .. over, ccx + cw / 2, ccy + px(2), "ink",
+                            UIFont.CodeSmall, 0.6)
         end
     else
         self:text(P.txt("IGUI_OffGrid_BankHeader", s.cells, s.cellCap),
