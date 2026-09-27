@@ -216,7 +216,7 @@ L.SALVAGE = {
     -- 25 barns, draw this list only when it beats animal feed, about nine
     -- times on the whole map, hence the weight. A barn's real find is not
     -- loot: OG_Seed stands a few surplus panels and battery racks, as
-    -- tiles, in about one STORAGE barn in four (hay, no livestock), and the
+    -- tiles, in about one STORAGE barn in two (hay, no livestock), and the
     -- farm-storage rooms beside them carry parts in their shelves and crates
     -- through CrateFarming below.
     --
