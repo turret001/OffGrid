@@ -1,15 +1,22 @@
 --[[ OffGrid -- the houses that already had solar.
 
      Some people in Knox County were running panels before the outbreak, and
-     the world should say so. A fraction of residential buildings get a small
-     rig in the yard: two or three ground arrays, a battery rack, and, rarely,
-     a controller still wired to it.
+     the world should say so. A fraction of residential buildings get a rig in
+     the yard: a row of ground arrays, one or two battery racks, and a
+     controller, wired together the way the household left it.
 
-     Almost all of them are stripped. Cracked frames, an empty rack, the
-     controller long gone. That is the point: the first array a player ever
-     touches should be one they dragged home and could not yet build, and the
-     repair loop is what makes that a hook rather than a dead end. A small
-     fraction are still live, and finding one of those is a real moment.
+     EVERY seeded rig is complete, and that is a rule rather than a tendency
+     (Can, 2026-09-21). People were LIVING with these things; a solar array
+     wired to nothing is not a story, it is a bug. So the hardware is always
+     all there. What the world took is the CHARGE: the racks are mostly full
+     of batteries that are mostly finished, and the first array a player ever
+     touches is one they can see working and cannot yet feed. A small fraction
+     still hold enough to run something, and finding one of those is the
+     moment.
+
+     Where the parts stand is not decided here. OG_Yard plans the row against
+     the house's own walls and this file installs what it is handed, which is
+     what lets the same placement run offline over the real map files.
 
      THE HOOK, AND WHY IT IS THE ONLY ONE.
 
@@ -48,6 +55,7 @@ if isClient() then return end
 
 require "OffGrid/OG_Parts"
 require "OffGrid/OG_Model"
+require "OffGrid/OG_Yard"
 
 OffGrid = OffGrid or {}
 OffGrid.Seed = OffGrid.Seed or {}
@@ -56,26 +64,56 @@ local P = OffGrid.Parts
 local M = OffGrid.Model
 local try = P.try
 
--- One residential building in this many gets a rig.
+-- One residential building in this many gets a rig: the default of the
+-- sandbox's RigChance, which is what decides (S.rigChance).
 S.CHANCE = 15
 -- And one rig in this many is still working when it is found.
 S.LIVE = 8
--- A stripped rig keeps its controller standing, switched off and wired to
--- nothing, DEAD_CTRL_HIT times in DEAD_CTRL_MOD (2 in 7, about 29%). 2.10.0:
--- replaying the roll over the real map put 15 seeded rigs in Muldraugh and
--- not one controller, because a controller was only ever placed on a live
--- rig, so players met piles of panels and racks and nothing to run them from.
--- Rolled with S.draw, like every roll taken after the gates: the first cut
--- used the linear S.roll with a modulus of 3, which divides S.CHANCE, and it
--- fired for 95.5% of seeded houses instead of a third (see S.draw).
-S.DEAD_CTRL_MOD = 7
-S.DEAD_CTRL_HIT = 2
+-- There is no dead-controller roll any more, and no S.DEAD_CTRL_*.
+--
+-- 2.10.0 placed a controller only on a live rig, which put 15 seeded rigs in
+-- Muldraugh and not one controller: players met piles of panels and racks
+-- with nothing to run them from. The fix then was to let a stripped rig keep
+-- its controller two times in seven. The fix now is that the question cannot
+-- arise -- a plan carries one controller field and the install places it, so
+-- a rig without one is not a thing this file can build. S.LIVE no longer
+-- gates hardware, only what is left in the batteries.
+--
+-- Every seeded rig is WIRED too. A household that ran on this wired it, and
+-- the wire is written by the plan over the squares it placed rather than
+-- found by radius, so a controller can never pick up next door's panels.
 
 -- The condition a weathered frame is found at. The same band the salvage loot
 -- uses, so a panel out of a yard and a panel out of a barn read the same.
 S.COND_MIN, S.COND_MAX = 15, 45
 
 S.LEDGER = "OffGridSeededBuildings"
+
+--- STORAGE BARNS. Can, 2026-09-26: "especially none in barns", and then
+--  which barns: not the livestock barns ("feeders should not have solar
+--  parts"), but the ones used for hay storage only -- "an empty barn with hay
+--  in it. The farmer would've stored his surplus solar panels and battery
+--  banks in it." So a storage barn in this many holds a few of them as tiles,
+--  placed like the yard rigs: once, the first time its ground is generated.
+--  One in two by default, Can's choice: there are only about 50 storage
+--  barns on the map. The sandbox's BarnStockChance decides (S.barnChance).
+--  Farm-storage rooms get items in their containers instead (OG_Loot).
+--
+--  A storage barn is a building with a barn or hay-storage room, no feeding
+--  trough anywhere in those rooms, and no room where animals or people live.
+--  The map has about 50 of them against 132 livestock barns (troughs).
+S.BARN_CHANCE = 2
+S.BARN_ROOMS = { "barn", "haystorage" }
+S.NOT_STORAGE = { "chickencoop", "pigsty", "stable", "horsebox", "kennels",
+                  "bedroom", "kitchen", "livingroom" }
+--- The stock: panels and battery racks, alternating, two to four of them,
+--  standing as tiles. Stored indoors, so in better shape than a rig left in
+--  the yard.
+S.STASH_MIN, S.STASH_MAX = 2, 4
+S.STASH_COND_MIN, S.STASH_COND_MAX = 35, 75
+--- Barn jobs share the ledger and the waiting list with the rigs, under
+--  their own key, so a building can be decided for both.
+S.BARN_KEY = "barn:"
 
 --- A stable pseudo-random value for a building, in 0..modulus-1.
 --
@@ -108,6 +146,19 @@ function S.draw(def, salt, modulus)
     return h % math.max(1, math.floor(modulus or 1))
 end
 
+--- How rare the finds are, from the sandbox (a suggestion-board request,
+--  2026-09-26): one house in RigChance gets a yard rig, one storage barn in
+--  BarnStockChance holds spare gear, and 0 turns either off. Read at every
+--  decision, so a changed setting applies to the next ground generated.
+local function chance(name, default)
+    local n = tonumber(P.sandbox(name)) or default
+    if n < 0 then n = 0 end
+    return math.floor(n)
+end
+
+function S.rigChance() return chance("RigChance", S.CHANCE) end
+function S.barnChance() return chance("BarnStockChance", S.BARN_CHANCE) end
+
 --- Vanilla's own definition of a residential building: somewhere to sleep,
 --  somewhere to wash, and somewhere to cook or sit.
 function S.isResidential(def)
@@ -117,60 +168,190 @@ function S.isResidential(def)
     return def:getRoom("kitchen") ~= nil or def:getRoom("livingroom") ~= nil
 end
 
---- Would a part on this ring square stand in a doorway?
---
---  The ring runs right along the walls, and every part the seeder places is
---  solid, so a rig laid along a wall with a door in it walled the door off:
---  isFree only asks about the square itself, not about the edge it shares
---  with the house. The square one step into the footprint is the other side
---  of that edge; a corner of the ring touches the house at a point, not an
---  edge. A door, a door frame with no door in it, or a neighbour that is not
---  streamed in yet all rule the square out.
-function S.facesDoor(sq, x, y, z, x1, y1, x2, y2)
-    local nx, ny = x, y
-    if x == x1 then nx = x + 1 elseif x == x2 then nx = x - 1 end
-    if y == y1 then ny = y + 1 elseif y == y2 then ny = y - 1 end
-    if (nx ~= x) == (ny ~= y) then return false end
-    local inner = getSquare(nx, ny, z)
-    if not inner then return true end
-    if try(sq, "isDoorTo", inner) or try(sq, "getDoorTo", inner)
-            or try(sq, "getDoorFrameTo", inner) then
-        return true
-    end
-    -- An empty doorway is a wall piece flagged as a door frame, owned by the
-    -- square to the south or east of the edge.
-    local owner = (nx > x or ny > y) and inner or sq
-    local props = try(owner, "getProperties")
-    if props and IsoFlagType then
-        local flag = (nx ~= x) and IsoFlagType.DoorWallW or IsoFlagType.DoorWallN
-        if flag and try(props, "has", flag) then return true end
-    end
-    return false
-end
+------------------------------------------------- the building, as plain data
 
---- Somewhere outdoors, on the ground, immediately around the building.
---  Walks the ring just outside the footprint so the rig reads as being in the
---  garden or on the drive rather than dropped in the street.
-function S.yardSquares(def, z, want)
+--- The ground-floor rooms of a building def, as plain tables.
+--
+--  OG_Yard takes no engine objects, so everything it needs about the house
+--  arrives like this. A def whose rooms cannot be read comes back empty and
+--  the planner falls back to the bounding box, which it flags.
+function S.rooms(def, z)
     local out = {}
-    local x1, y1 = def:getX() - 1, def:getY() - 1
-    local x2, y2 = def:getX() + def:getW(), def:getY() + def:getH()
-    for y = y1, y2 do
-        for x = x1, x2 do
-            local edge = (x == x1 or x == x2 or y == y1 or y == y2)
-            if edge then
-                local sq = getSquare(x, y, z)
-                if sq and sq:isOutside() and sq:getRoom() == nil
-                        and sq:hasFloor() and sq:isFree(false)
-                        and sq:getBuilding() == nil
-                        and not S.facesDoor(sq, x, y, z, x1, y1, x2, y2) then
-                    out[#out + 1] = sq
-                    if #out >= want then return out end
+    local list = try(def, "getRooms")
+    if not list or not list.size then return out end
+    for i = 0, list:size() - 1 do
+        local r = list:get(i)
+        -- getZ, not getLevel: RoomDef has no getLevel, and `try` would have
+        -- returned nil for it forever, so every room would have passed the
+        -- floor filter and upstairs rooms would have joined the footprint.
+        if (try(r, "getZ") or 0) == z then
+            local name = try(r, "getName")
+            -- A room is a LIST OF RECTANGLES. getX/getY/getW/getH on RoomDef
+            -- is the room's bounding box, so an L-shaped room claims ground
+            -- it does not stand on -- the same inflation this whole rewrite
+            -- exists to get rid of, one level down.
+            local rects = try(r, "getRects")
+            local n = (rects and rects.size) and rects:size() or 0
+            for j = 0, n - 1 do
+                local q = rects:get(j)
+                local x, y = try(q, "getX"), try(q, "getY")
+                local w, h = try(q, "getW"), try(q, "getH")
+                if x and y and w and h and w > 0 and h > 0 then
+                    out[#out + 1] = { x = x, y = y, w = w, h = h,
+                                      level = z, name = name }
+                end
+            end
+            if n == 0 then
+                local x, y = try(r, "getX"), try(r, "getY")
+                local w, h = try(r, "getW"), try(r, "getH")
+                if x and y and w and h and w > 0 and h > 0 then
+                    out[#out + 1] = { x = x, y = y, w = w, h = h,
+                                      level = z, name = name }
                 end
             end
         end
     end
     return out
+end
+
+--- The ledger key for a building.
+--
+--  The old key was the bounding-box corner, def:getX()..","..def:getY(), and
+--  it COLLIDES: 21 pairs of buildings map-wide share a corner, 7 of them
+--  residential. A collision is not cosmetic -- the loser is recorded as
+--  already served and can never be seeded, for the life of the save.
+--
+--  The lowest ground-floor room origin plus the ground-floor room area
+--  separates them: two buildings can share a corner, but not a corner AND an
+--  interior. Falls back to the old key for a def with no readable rooms,
+--  which is the only case where nothing better is available.
+function S.key(def, rooms)
+    rooms = rooms or S.rooms(def, 0)
+    local bx, by, area = nil, nil, 0
+    for i = 1, #rooms do
+        local r = rooms[i]
+        area = area + r.w * r.h
+        if not bx or r.x < bx or (r.x == bx and r.y < by) then
+            bx, by = r.x, r.y
+        end
+    end
+    if not bx then return S.legacyKey(def) end
+    return bx .. "," .. by .. ":" .. area
+end
+
+--- What the ledger used to be keyed on.
+--
+--  Still CHECKED, never written. A save made before the key changed has its
+--  seeded houses recorded under these, and reading both is what stops every
+--  one of them being served a second rig the next time its chunk loads.
+function S.legacyKey(def)
+    return def:getX() .. "," .. def:getY()
+end
+
+------------------------------------------------------------- the world, asked
+
+--- Squares this session has already given to a rig.
+--
+--  Belt and braces. Every part the seeder places carries solid or solidtrans
+--  in its tile properties, so the next house's survey rejects the square on
+--  its own; this covers the window between planning and placing, and any part
+--  whose properties change later.
+S.CLAIMED = {}
+
+--- Whether the engine's own arbiter of building ownership is reachable.
+--  nil = not yet asked, false = not available on this build.
+S.ownerProbe = nil
+
+--- Which building the engine thinks an OUTDOOR square belongs to.
+--
+--  getSquare():getBuilding() is nil for every square a rig can stand on, so
+--  it cannot answer this. IsoMetaGrid does. Measured over 29,183 apron
+--  squares on 233 houses, 2.4% are nearer a neighbour than their own house --
+--  small, but it is exactly the 2.4% that produces a rig in the wrong garden.
+--
+--  Returns nil when the call is unavailable, and nil means "no objection":
+--  the wall-anchored survey already keeps candidates within three squares of
+--  a wall this house owns, so losing this costs a refinement, not the rule.
+function S.owner(x, y, z)
+    if S.ownerProbe == false then return nil end
+    local world = getWorld and getWorld()
+    local mg = world and try(world, "getMetaGrid")
+    if not mg or not mg.getAssociatedBuildingAt then
+        S.ownerProbe = false
+        return nil
+    end
+    S.ownerProbe = true
+    -- It returns a BuildingDef DIRECTLY, not an IsoBuilding, so there is no
+    -- getDef() to call on the result -- doing so returned nil every time and
+    -- the ownership veto silently never fired. Two overloads in the jar,
+    -- (int,int) and (int,int,IsoDirections); neither takes a z.
+    local d = try(mg, "getAssociatedBuildingAt", x, y)
+    if not d then return nil end
+    return S.key(d)
+end
+
+--- The world as OG_Yard asks about it.
+function S.env()
+    return {
+        getSquare = function(x, y, z) return getSquare(x, y, z) end,
+        owner = S.owner,
+        claimed = function(x, y, z)
+            return S.CLAIMED[x .. "," .. y .. "," .. z] == true
+        end,
+    }
+end
+
+--- How far around a building's bounding box must be loaded before it is
+--  planned: every square the planner can read (OG_Yard's READS). It used to
+--  be REACH + 1, which covered the side survey but not the panel-field walk,
+--  so a field could be refused for ground that simply had not streamed in
+--  yet and the rig came out different depending on how the player arrived.
+function S.pad()
+    local Y = OffGrid.Yard
+    return (Y and Y.READS) or ((Y and Y.REACH or 3) + 1)
+end
+
+--- Is the whole working area of this building streamed in yet?
+--
+--  THE bug behind "most of them are incomplete". LoadChunk fires per 8x8
+--  chunk and a house's yard usually spans several, so an install run from the
+--  first chunk to arrive saw only the fraction of the yard that happened to
+--  be loaded and getSquare returned nil for the rest. Replaying one real
+--  house at 10745,9525, whose surroundings span six chunks, over six
+--  different chunk-entry orders produced three different rigs on three
+--  different sides and three that produced nothing at all.
+--
+--  So nothing is planned until every square the planner could look at exists.
+function S.streamed(def, z, pad)
+    -- The engine's own answer first, and it is a fast NO for most of the
+    -- calls this makes. Not sufficient on its own: it speaks for the
+    -- building's OWN squares, and the planner also reads the ground around
+    -- it, which belongs to other chunks.
+    local inner = try(def, "isFullyStreamedIn")
+    if inner == false then return false end
+
+    pad = pad or S.pad()
+    local bx, by = def:getX(), def:getY()
+    local bw, bh = def:getW(), def:getH()
+    -- The four corners first. A yard still arriving is almost always missing
+    -- one, and this is asked every time a chunk around a waiting house loads.
+    if not (getSquare(bx - pad, by - pad, z) and getSquare(bx + bw + pad, by - pad, z)
+            and getSquare(bx - pad, by + bh + pad, z)
+            and getSquare(bx + bw + pad, by + bh + pad, z)) then
+        return false
+    end
+    for x = bx - pad, bx + bw + pad do
+        for y = by - pad, by + bh + pad do
+            -- When the engine has vouched for the building's own squares,
+            -- only the ground AROUND it still has to be walked. That is most
+            -- of the box for a large house.
+            local vouched = (inner == true)
+                            and x >= bx and x < bx + bw
+                            and y >= by and y < by + bh
+            if not vouched and not getSquare(x, y, z) then return false end
+        end
+    end
+    return true
 end
 
 --- Put one Off-Grid object on a square and make the world notice.
@@ -192,174 +373,349 @@ function S.place(sq, kind, mount, tier, state, facing)
     return o
 end
 
---- Build one house's rig.
+--- Build one house's rig from the plan OG_Yard hands back.
+--
+--  Nothing here chooses a square. If there is no plan the house gets NOTHING:
+--  a rig is complete or it does not exist, so there is no path through this
+--  function that leaves panels standing with no controller.
 function S.install(def, z)
     local id = def
-    local squares = S.yardSquares(def, z, 5)
-    if #squares < 2 then return 0 end
+    local Y = OffGrid.Yard
+    local rooms = S.rooms(def, z)
+    local b = { x = def:getX(), y = def:getY(), w = def:getW(), h = def:getH(),
+                z = z, id = S.key(def, rooms), rooms = rooms }
+
+    -- How big a rig this household built. Both are clamped by the planner,
+    -- and both are cut down by it when the wall is too short for the row.
+    local want = {
+        arrays = Y.MIN_ARRAYS + S.draw(id, 11, Y.MAX_ARRAYS - Y.MIN_ARRAYS + 1),
+        banks  = Y.MIN_BANKS  + S.draw(id, 13, Y.MAX_BANKS - Y.MIN_BANKS + 1),
+    }
+    local plan, reasons = Y.plan(b, S.env(), want)
+    if not plan then return 0, false, reasons end
 
     if S.DEBUG then
-        print(string.format("OG_Seed: install at %d,%d -- %d yard squares",
-                            def:getX(), def:getY(), #squares))
+        print(string.format(
+            "OG_Seed: plan at %d,%d -- %s wall, %d panels, %d rack(s)",
+            def:getX(), def:getY(), plan.dir, #plan.arrays, #plan.banks))
     end
-    -- A controller needs a square of its own beside the arrays and the rack,
-    -- so a yard with fewer than three free squares holds neither a working
-    -- rig nor a dead controller, whatever the rolls say. A "working" rig
-    -- there used to be a charged rack beside one array with nothing to run
-    -- them from.
-    local roomForController = #squares >= 3
-    local live = roomForController and S.roll(id, 7, S.LIVE) == 0
-    local deadCtrl = roomForController and not live
-                     and S.draw(id, 9, S.DEAD_CTRL_MOD) < S.DEAD_CTRL_HIT
-    local arrays = 2 + S.draw(id, 11, 2)          -- two or three
+
+    -- Whether the batteries still hold anything. The hardware is not in
+    -- question; S.LIVE decides the charge and nothing else.
+    local live = S.roll(id, 7, S.LIVE) == 0
     local made = 0
 
-    -- Leave the tail of the list for the rack and, when a controller stands
-    -- (working or dead), for the controller. The old bound (#squares - 1) let
-    -- a three-square yard put the controller on top of array two:
-    -- makeController swaps sprites on whatever it is given, so the collision
-    -- was silent and the rig looked like a controller standing in a hole in
-    -- its own array row. At least one array always fits: a controller is
-    -- only reserved for when there are three squares, and a yard of fewer
-    -- than two was turned away above.
-    local reserve = (live or deadCtrl) and 2 or 1
+    ------------------------------------------------------------- the panels
     local placedArrays = {}
-    for i = 1, math.min(arrays, #squares - reserve) do
-        local sq = squares[i]
+    for i = 1, #plan.arrays do
+        local p = plan.arrays[i]
+        local sq = getSquare(p.x, p.y, p.z)
         local tier = (S.draw(id, 20 + i, 4) == 0) and "standard" or "makeshift"
-        -- Work out the state BEFORE placing, and place that sprite directly.
-        --
-        -- What shipped placed "clear" and then called P.setState to swap it,
-        -- and every seeded array in the live world came out pristine: 28 of
-        -- them, 0 cracked, where the condition roll says about 70% should be.
-        -- The swap happens inside Events.LoadChunk, on an object the chunk has
-        -- already taken via transmitAddObjectToSquare, and it does not reach
-        -- the save. Building the right sprite up front removes the question
-        -- rather than answering it, and it is one write instead of three.
+        -- Work out the state BEFORE placing and place that sprite directly.
+        -- A P.setState swap afterwards happens inside Events.LoadChunk on an
+        -- object the chunk has already taken, and does not reach the save: 28
+        -- seeded arrays in the live world came out pristine when the
+        -- condition roll says about 70% should be cracked.
         local spec = {
             condition = S.COND_MIN + S.draw(id, 30 + i, S.COND_MAX - S.COND_MIN),
             soiling   = 0.35 + S.draw(id, 40 + i, 40) / 100,
             snow      = 0,
         }
         local state = P.arrayState(spec)
-        local o = S.place(sq, "array", "ground", tier, state, "S")
+        local o = sq and S.place(sq, "array", "ground", tier, state, p.facing)
         if o then
             local d = P.data(o)
             d.condition = spec.condition
-            d.panels = M.arraySpec(tier).panels
+            d.panels = M.baseArraySpec(tier).panels
             d.soiling = spec.soiling
             d.snow = spec.snow
             d.state = state
             o:transmitModData()
-            placedArrays[#placedArrays + 1] = sq
-            if S.DEBUG then
-                print(string.format("OG_Seed: array %d cond=%s (read back %s)",
-                                    i, tostring(d.condition),
-                                    tostring(P.data(o).condition)))
-            end
+            placedArrays[#placedArrays + 1] = p
             made = made + 1
         end
     end
 
-    -- The rack. Empty in almost every case: whoever lived here took the
-    -- batteries, or somebody else did.
-    local bankSq = squares[#squares]
-    -- "off" is NOT a bank state and never was. A rack's states are its cell
-    -- counts, c0..c3, so P.sprite returned nil, S.place returned nil, and this
-    -- whole block was skipped: no seeded house ever got its battery rack. It
-    -- failed silently because a missing sprite is a nil return, not an error.
-    -- Same shape as the array above: derive the state, then place it.
-    local cells = live and (2 + S.draw(id, 51, 2)) or 0
-    local spec  = { mount = "ground", tier = "makeshift", cells = cells }
-    local state = P.bankState(spec)
-    local o = S.place(bankSq, "bank", "ground", "makeshift", state, "S")
-    if o then
-        local d = P.data(o)
-        d.condition = S.COND_MIN + S.draw(id, 50, S.COND_MAX - S.COND_MIN)
-        d.cells = cells
-        -- Health lives on the cells now. Each one gets its own draw around
-        -- the rack's old flat figure, so a scavenged rack is a mix rather than
-        -- six identically tired batteries, and the mean still lands where the
-        -- single number used to be.
-        local base = live and 0.7 or 0.55
-        d.cellList = {}
-        d.nextCellId = 1
-        if live then
-            for i = 1, cells do
-                d.cellList[i] = {
-                    id = i, type = "Base.CarBattery1",
-                    health = M.clamp(base - 0.10 + S.draw(id, 60 + i, 21) / 100,
-                                     0.25, 1),
-                }
+    -------------------------------------------------------------- the racks
+    --
+    -- Usually holding cells, and those cells usually nearly finished. The
+    -- numbers live in Y.CELLS with the rest of the rig's composition. One
+    -- rack in EMPTY_IN is bare, because sometimes somebody did get here first.
+    local C = Y.CELLS
+    local placedBanks, cellTotal = {}, 0
+    for i = 1, #plan.banks do
+        local p = plan.banks[i]
+        local sq = getSquare(p.x, p.y, p.z)
+        local bare = S.draw(id, 70 + i, C.EMPTY_IN) == 0
+        local cells = bare and 0 or (2 + S.draw(id, 51 + i, 2))
+        local state = P.bankState({ mount = "ground", tier = "makeshift",
+                                    cells = cells })
+        local o = sq and S.place(sq, "bank", "ground", "makeshift", state,
+                                 p.facing)
+        if o then
+            local d = P.data(o)
+            d.condition = S.COND_MIN + S.draw(id, 50 + i, S.COND_MAX - S.COND_MIN)
+            d.cells = cells
+            d.cellList = {}
+            for j = 1, cells do
+                -- Mostly dead, with the occasional one that outlived the rest.
+                local h
+                if S.draw(id, 120 + i * 8 + j, C.SPARED_IN) == 0 then
+                    h = C.MAX + S.draw(id, 160 + i * 8 + j,
+                                       C.SPARED_MAX - C.MAX + 1)
+                else
+                    h = C.MIN + S.draw(id, 80 + i * 8 + j, C.MAX - C.MIN + 1)
+                end
+                d.cellList[j] = { id = j, type = "Base.CarBattery1",
+                                  health = M.clamp(h / 100, 0.01, 1) }
             end
             d.nextCellId = cells + 1
-            -- Scaled like the live simulation scales it, or a server running
-            -- BankScale 50 spawns racks holding twice what they can keep and
-            -- the first tick clips the surplus into nothing.
-            local cap = M.bankCapacity({ tier = "makeshift",
-                                         cellSum = M.cellSum(d.cellList),
-                                         scale = P.bankScale() }, 20)
-            d.charge = cap * (0.3 + S.draw(id, 52, 40) / 100)
-        else
-            d.charge = 0
+            if live and cells > 0 then
+                -- Scaled the way the live simulation scales it, or a server
+                -- running BankScale 50 spawns racks holding twice what they
+                -- can keep and the first tick clips the surplus into nothing.
+                local cap = M.bankCapacity({ tier = "makeshift",
+                                             cellSum = M.cellSum(d.cellList),
+                                             scale = P.bankScale() }, 20)
+                d.charge = cap * (0.2 + S.draw(id, 52 + i, 40) / 100)
+            else
+                d.charge = 0
+            end
+            d.state = state
+            o:transmitModData()
+            placedBanks[#placedBanks + 1] = p
+            cellTotal = cellTotal + cells
+            made = made + 1
         end
-        d.state = state
-        o:transmitModData()
+    end
+
+    --------------------------------------------------------- the controller
+    --
+    -- Always. That is the rule, and it is why the plan carries one controller
+    -- FIELD rather than a count: there is no branch here that can decide not
+    -- to place it, only an engine failure that can stop it.
+    local cp = plan.controller
+    local csq = getSquare(cp.x, cp.y, cp.z)
+    local c = csq and OffGrid.Place and OffGrid.Place.makeController(
+        csq, nil,
+        { kind = "controller", mount = "ground", tier = "basic",
+          facing = cp.facing }, nil)
+    if c then
+        local d = P.data(c)
+        d.online = live and cellTotal > 0
+        d.trip = false
+        -- WIRED, over exactly the squares this plan placed, and never found
+        -- by radius. That is what makes it impossible for this controller to
+        -- pick up the house next door's panels, whatever stands between them.
+        local root = M.nodeKey(cp.x, cp.y, cp.z, "controller")
+        local w = ""
+        for n = 1, #placedArrays do
+            local a = placedArrays[n]
+            w = M.wireAdd(w, M.nodeKey(a.x, a.y, a.z, "array"), root)
+        end
+        for n = 1, #placedBanks do
+            local k = placedBanks[n]
+            w = M.wireAdd(w, M.nodeKey(k.x, k.y, k.z, "bank"), root)
+        end
+        d.wire = w
+        c:transmitModData()
         made = made + 1
     end
 
-    -- The controller only survives on a rig that still works. Everywhere else
-    -- it is the one piece worth taking, and somebody took it.
-    if live then
-        local c = OffGrid.Place and OffGrid.Place.makeController(
-            squares[#squares - 1], nil,
-            { kind = "controller", mount = "ground", tier = "basic",
-              facing = "S" }, nil)
-        if c then
-            local d = P.data(c)
-            d.online = true
-            d.trip = false
-            -- WIRED, which is the whole point of finding one still standing.
-            -- The seed set online=true and a charged rack and never wrote a
-            -- single edge, so the flagship find was a controller powering
-            -- nothing: the first relink walked an empty graph, claimed
-            -- nothing, and the player met a dead rig sold as a live one.
-            local csq = c:getSquare()
-            local root = M.nodeKey(csq:getX(), csq:getY(), csq:getZ(),
-                                   "controller")
-            local w = ""
-            for n = 1, #placedArrays do
-                local aq = placedArrays[n]
-                w = M.wireAdd(w, M.nodeKey(aq:getX(), aq:getY(), aq:getZ(),
-                                           "array"), root)
-            end
-            if o then
-                w = M.wireAdd(w, M.nodeKey(bankSq:getX(), bankSq:getY(),
-                                           bankSq:getZ(), "bank"), root)
-            end
-            d.wire = w
-            c:transmitModData()
-            made = made + 1
+    -- Hold the ground, so a house planned later in the same pass cannot be
+    -- handed a square this one is standing on.
+    for i = 1, #plan.squares do
+        local sq = plan.squares[i]
+        S.CLAIMED[sq.x .. "," .. sq.y .. "," .. sq.z] = true
+    end
+
+    return made, live, reasons
+end
+
+
+------------------------------------------------------------------- barns
+
+--- Could this building be a storage barn? Rooms only: a barn or hay-storage
+--  room, and nowhere animals or people live. Troughs need the squares, so
+--  they are looked for when the barn is stocked.
+function S.isStorageBarn(def)
+    if not def or not def.getRoom then return false end
+    local barn = false
+    for i = 1, #S.BARN_ROOMS do
+        if def:getRoom(S.BARN_ROOMS[i]) ~= nil then barn = true end
+    end
+    if not barn then return false end
+    for i = 1, #S.NOT_STORAGE do
+        if def:getRoom(S.NOT_STORAGE[i]) ~= nil then return false end
+    end
+    return true
+end
+
+--- A feeding trough on this square, as the map placed it or as the engine
+--  turned it into a feeding-trough object.
+function S.hasTrough(sq)
+    local objs = try(sq, "getObjects")
+    for i = 0, (objs and objs:size() or 0) - 1 do
+        local o = objs:get(i)
+        if instanceof and instanceof(o, "IsoFeedingTrough") then return true end
+        local spr = try(o, "getSprite")
+        local props = spr and try(spr, "getProperties")
+        if props and try(props, "get", "container") == "trough" then return true end
+    end
+    return false
+end
+
+--- A square a part can lie on: open floor with nothing standing on it and no
+--  container, so never a trough, a crate or a stall wall.
+function S.floorFree(sq)
+    if try(sq, "isFree", false) ~= true then return false end
+    local objs = try(sq, "getObjects")
+    for i = 0, (objs and objs:size() or 0) - 1 do
+        local o = objs:get(i)
+        if try(o, "getContainer") ~= nil then return false end
+    end
+    return true
+end
+
+--- Is there a door on any edge of this square? Stock is stood out of the
+--  way, never across somebody's way in or out.
+local function besideDoor(env, x, y)
+    for _, d in ipairs({ { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 } }) do
+        if OffGrid.Yard.doorBetween(env, x, y, x + d[1], y + d[2], 0) then
+            return true
         end
-    elseif deadCtrl then
-        -- Somebody took the batteries, not the box. Off, unwired, and
-        -- worth carrying home: the one part of a stripped rig a player
-        -- cannot build for weeks.
-        local c = OffGrid.Place and OffGrid.Place.makeController(
-            squares[#squares - 1], nil,
-            { kind = "controller", mount = "ground", tier = "basic",
-              facing = "S" }, nil)
-        if c then
-            local d = P.data(c)
-            d.online = false
-            d.trip = false
-            d.wire = ""
-            c:transmitModData()
-            made = made + 1
+    end
+    return false
+end
+
+--- Stock a storage barn with Off-Grid TILES: surplus panels and battery
+--  racks standing in a row along one wall, from a corner, the way stock is
+--  put away. Can, 2026-09-26: hay storage gets the tiles, and farm storage
+--  rooms get items in their containers (OG_Loot's CrateFarming). What, how
+--  many, where and how worn are all drawn from the building, so the same barn
+--  always holds the same stock.
+--
+--  Returns the parts placed, or nil and a reason: "livestock" when a feeding
+--  trough stands in the barn, "full" when no corner has room.
+function S.stockBarn(def)
+    local open, rects = {}, {}
+    local isBarnRoom = {}
+    for i = 1, #S.BARN_ROOMS do isBarnRoom[S.BARN_ROOMS[i]] = true end
+    local list = try(def, "getRooms")
+    for i = 0, (list and list.size and list:size() or 0) - 1 do
+        local r = list:get(i)
+        if isBarnRoom[try(r, "getName") or ""] and (try(r, "getZ") or 0) == 0 then
+            local rs = try(r, "getRects")
+            for j = 0, (rs and rs.size and rs:size() or 0) - 1 do
+                local q = rs:get(j)
+                local x0, y0 = try(q, "getX"), try(q, "getY")
+                local w, h = try(q, "getW"), try(q, "getH")
+                if x0 and y0 and w and h then
+                    rects[#rects + 1] = { x0, y0, w, h }
+                    for x = x0, x0 + w - 1 do
+                        for y = y0, y0 + h - 1 do
+                            local sq = getSquare(x, y, 0)
+                            if sq then
+                                if S.hasTrough(sq) then return nil, "livestock" end
+                                if S.floorFree(sq) then open[x .. "," .. y] = sq end
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
 
-    return made, live
+    -- Runs along the walls of the barn rooms, facing into the room: from a
+    -- corner if any corner has room, otherwise from anywhere along a wall
+    -- (hay is usually stacked into the corners). The longest the barn allows,
+    -- up to the stock this household had, is used.
+    local env = S.env()
+    local want = S.STASH_MIN + S.draw(def, 93, S.STASH_MAX - S.STASH_MIN + 1)
+    local runs = nil
+    for n = want, 1, -1 do
+        local found = {}
+        for pass = 1, 2 do
+            for i = 1, #rects do
+                local x0, y0, w, h = rects[i][1], rects[i][2], rects[i][3], rects[i][4]
+                local x1, y1 = x0 + w - 1, y0 + h - 1
+                -- corner, direction along the wall, facing, wall length
+                local walks = {
+                    { x0, y0, 1, 0, "S", w }, { x0, y0, 0, 1, "E", h },
+                    { x1, y0, -1, 0, "S", w }, { x1, y0, 0, 1, "W", h },
+                    { x0, y1, 1, 0, "N", w }, { x0, y1, 0, -1, "E", h },
+                    { x1, y1, -1, 0, "N", w }, { x1, y1, 0, -1, "W", h },
+                }
+                for k = 1, #walks do
+                    local wk = walks[k]
+                    local last = (pass == 1) and 0 or (wk[6] - n)
+                    for st = (pass == 1) and 0 or 1, last do
+                        local run = {}
+                        for s = st, st + n - 1 do
+                            local x, y = wk[1] + wk[3] * s, wk[2] + wk[4] * s
+                            local sq = open[x .. "," .. y]
+                            if not sq or besideDoor(env, x, y) then break end
+                            run[#run + 1] = sq
+                        end
+                        if #run == n then
+                            found[#found + 1] = { squares = run, facing = wk[5] }
+                        end
+                    end
+                end
+            end
+            if #found > 0 then break end
+        end
+        if #found > 0 then
+            runs = found
+            break
+        end
+    end
+    if not runs then return nil, "full" end
+    local run = runs[1 + S.draw(def, 90, #runs)]
+
+    local placed = {}
+    for i = 1, #run.squares do
+        local sq = run.squares[i]
+        local o
+        if i % 2 == 1 then
+            -- a panel
+            local tier = (S.draw(def, 94 + i, 4) == 0) and "standard" or "makeshift"
+            local spec = {
+                condition = S.STASH_COND_MIN + S.draw(def, 100 + i,
+                                S.STASH_COND_MAX - S.STASH_COND_MIN + 1),
+                soiling = 0.05 + S.draw(def, 104 + i, 20) / 100,
+                snow = 0,
+            }
+            local state = P.arrayState(spec)
+            o = S.place(sq, "array", "ground", tier, state, run.facing)
+            if o then
+                local d = P.data(o)
+                d.condition, d.soiling, d.snow, d.state = spec.condition, spec.soiling, 0, state
+                d.panels = M.baseArraySpec(tier).panels
+                o:transmitModData()
+            end
+        else
+            -- a battery rack, usually with a battery or two left in it
+            local cells = S.draw(def, 120 + i, 3)
+            local state = P.bankState({ mount = "ground", tier = "makeshift", cells = cells })
+            o = S.place(sq, "bank", "ground", "makeshift", state, run.facing)
+            if o then
+                local d = P.data(o)
+                d.condition = S.STASH_COND_MIN + S.draw(def, 130 + i,
+                                  S.STASH_COND_MAX - S.STASH_COND_MIN + 1)
+                d.cells, d.cellList = cells, {}
+                for j = 1, cells do
+                    d.cellList[j] = { id = j, type = "Base.CarBattery1",
+                                      health = (20 + S.draw(def, 140 + i * 4 + j, 41)) / 100 }
+                end
+                d.nextCellId, d.charge, d.state = cells + 1, 0, state
+                o:transmitModData()
+            end
+        end
+        if o then placed[#placed + 1] = o end
+    end
+    if #placed == 0 then return nil, "full" end
+    return placed
 end
 
 --------------------------------------------------------------------- driver
@@ -369,55 +725,242 @@ local function ledger()
     return ModData.getOrCreate(S.LEDGER)
 end
 
+--- Houses that passed the gate and are waiting for their yard to load.
+--
+--  IN THE SAVE, keyed like the ledger, each holding "ax,ay,x,y,w,h": a ground
+--  square of the building, to find it again, and its bounding box. A key is
+--  either waiting here or recorded in the ledger, never both, which is what
+--  keeps the no-double-rig guarantee.
+--
+--  The first queue lived in memory and gave a house up, into the ledger,
+--  after twelve chunk events of any kind. The engine loads 169 chunks around
+--  a player at once and 13 more at every chunk-boundary step, so nearly every
+--  house was burned before its own yard arrived: in the live test of
+--  2026-09-26 a teleport into Louisville queued a street of chosen houses and
+--  built none. A house now waits for as long as it takes, across saves, and
+--  is looked at again whenever a chunk its working area touches loads. A
+--  building whose ground never exists (the map edge) just stays here.
+S.WAITING = "OffGridSeedWaiting"
+
+local function waitingBook()
+    if not ModData or not ModData.getOrCreate then return nil end
+    return ModData.getOrCreate(S.WAITING)
+end
+
+--- Chunk "kx,ky" -> { [house key] = true }, for every chunk a waiting house's
+--  working area touches. Memory only: rebuilt from the save the first time a
+--  chunk loads, so a house still waiting when the game was saved is watched
+--  again.
+S.INDEX = nil
+
+--- This session's building defs by key, so a house found here is not looked
+--  up again from its square.
+S.DEFS = {}
+
+local floor = math.floor
+
+local function parseWait(v)
+    if type(v) ~= "string" then return nil end
+    local ax, ay, x, y, w, h = string.match(v,
+        "^(-?%d+),(-?%d+),(-?%d+),(-?%d+),(%d+),(%d+)$")
+    if not ax then return nil end
+    return tonumber(ax), tonumber(ay), tonumber(x), tonumber(y),
+           tonumber(w), tonumber(h)
+end
+
+local function isBarnKey(key)
+    return string.sub(key, 1, #S.BARN_KEY) == S.BARN_KEY
+end
+
+--- How much ground around the building a job needs loaded: a rig reads its
+--  yard, a barn part only needs the barn.
+local function padFor(key)
+    if isBarnKey(key) then return 0 end
+    return S.pad()
+end
+
+--- Every chunk the working area of a waiting job touches: the box
+--  S.streamed walks, in chunks.
+local function eachChunk(v, fn, pad)
+    local ax, ay, x, y, w, h = parseWait(v)
+    if not ax then return false end
+    for kx = floor((x - pad) / 8), floor((x + w + pad) / 8) do
+        for ky = floor((y - pad) / 8), floor((y + h + pad) / 8) do
+            fn(kx .. "," .. ky)
+        end
+    end
+    return true
+end
+
+local function indexAdd(key, v)
+    return eachChunk(v, function(ck)
+        local set = S.INDEX[ck]
+        if not set then
+            set = {}
+            S.INDEX[ck] = set
+        end
+        set[key] = true
+    end, padFor(key))
+end
+
+local function indexRemove(key, v)
+    eachChunk(v, function(ck)
+        local set = S.INDEX[ck]
+        if set then set[key] = nil end
+    end, padFor(key))
+end
+
+local function index(wait)
+    if S.INDEX then return S.INDEX end
+    S.INDEX = {}
+    local bad = {}
+    for key, v in pairs(wait) do
+        if not indexAdd(key, v) then bad[#bad + 1] = key end
+    end
+    -- Save data is untrusted input: a malformed entry is dropped, never fatal.
+    for i = 1, #bad do wait[bad[i]] = nil end
+    return S.INDEX
+end
+
+--- A waiting house's building, from this session or found again from the
+--  ground square it was queued from. Nil while that square is not loaded.
+local function defOf(key, v)
+    local def = S.DEFS[key]
+    if def then return def end
+    local ax, ay = parseWait(v)
+    local sq = ax and getSquare(ax, ay, 0)
+    local b = sq and sq:getBuilding()
+    def = b and b:getDef()
+    if def then S.DEFS[key] = def end
+    return def
+end
+
+--- Serve one waiting house if its whole working area has loaded.
+--
+--  The ledger is written AFTER the work, not before. What shipped once marked
+--  the house first, so a rig that failed for any reason burned the house for
+--  good: recorded as served, never retried.
+local function serve(book, wait, key)
+    local v = wait[key]
+    if not v then return end
+    local def = defOf(key, v)
+    if not def or not S.streamed(def, 0, padFor(key)) then return end
+    indexRemove(key, v)
+    wait[key] = nil
+    book[key] = true
+    S.DEFS[key] = nil
+    if isBarnKey(key) then
+        local parts, why = S.stockBarn(def)
+        if parts then
+            local sq = parts[1]:getSquare()
+            print(string.format("OffGrid: stored %d surplus parts in the barn at %d,%d",
+                                #parts, sq:getX(), sq:getY()))
+        elseif S.DEBUG then
+            print(string.format("OG_Seed: no stock in the barn at %d,%d -- %s",
+                                def:getX(), def:getY(), tostring(why)))
+        end
+        return
+    end
+    local made, live, reasons = S.install(def, 0)
+    if made and made > 0 then
+        print(string.format(
+            "OffGrid: seeded a %s rig at %d,%d (%d parts)",
+            live and "working" or "flat", def:getX(), def:getY(), made))
+    elseif S.DEBUG and reasons then
+        local out = {}
+        for why, n in pairs(reasons) do out[#out + 1] = why .. "=" .. n end
+        table.sort(out)
+        print(string.format("OG_Seed: no room at %d,%d -- %s",
+                            def:getX(), def:getY(), table.concat(out, " ")))
+    end
+end
+
 function S.onLoadChunk(chunk)
     if not chunk or not chunk.isNewChunk or not chunk.getGridSquare then
         return
     end
-    -- The whole feature hangs off this one call. Without it the rig is rebuilt
-    -- every time the chunk streams back in.
-    if not chunk:isNewChunk() then return end
-
-    local book = ledger()
-    if not book then return end
+    local book, wait = ledger(), waitingBook()
+    if not book or not wait then return end
+    local idx = index(wait)
 
     -- IsoChunk has NO world-coordinate GETTERS. It carries the chunk indices as
     -- public int FIELDS, wx and wy, and the only exposed way in is
     -- getGridSquare(localX 0-7, localY 0-7, z), which is what this wants
     -- anyway. Calling a getter that does not exist throws once per new chunk
     -- and the seeding never runs.
-    local seen = {}
+    local origin = chunk:getGridSquare(0, 0, 0) or chunk:getGridSquare(7, 7, 0)
 
-    for dy = 0, 7 do
-        for dx = 0, 7 do
-            local sq = chunk:getGridSquare(dx, dy, 0)
-            local b = sq and sq:getBuilding()
-            local def = b and b:getDef()
-            if def then
-                -- Keyed on coordinates, not on the metaId: see M.placeRoll for why
-                -- a long that large is not safe to work with in Lua.
-                local key = def:getX() .. "," .. def:getY()
-                if not seen[key] and not book[key] then
-                    seen[key] = true
-                    if S.isResidential(def)
-                            and S.roll(def, 3, S.CHANCE) == 0 then
-                        -- Marked before the work, not after. A house whose
-                        -- yard turns out to be unusable must not be retried
-                        -- from the next chunk and end up with two rigs.
-                        book[key] = true
-                        local made, live = S.install(def, 0)
-                        if made and made > 0 then
-                            print(string.format(
-                                "OffGrid: seeded a %s rig at %d,%d (%d parts)",
-                                live and "working" or "stripped",
-                                def:getX(), def:getY(), made))
+    -- Only a NEW chunk can bring a house to the gate. isNewChunk is what
+    -- stops a rig being rebuilt every time the chunk streams back in.
+    if chunk:isNewChunk() then
+        local seen, keyOf = {}, {}
+        for dy = 0, 7 do
+            for dx = 0, 7 do
+                local sq = chunk:getGridSquare(dx, dy, 0)
+                local b = sq and sq:getBuilding()
+                local def = b and b:getDef()
+                if def then
+                    -- Once per building, not once per square: S.rooms builds
+                    -- a table for every room rect, and a chunk inside a big
+                    -- building met the same def 64 times.
+                    local key = keyOf[def]
+                    if not key then
+                        key = S.key(def, S.rooms(def, 0))
+                        keyOf[def] = key
+                    end
+                    local v = sq:getX() .. "," .. sq:getY() .. ","
+                              .. def:getX() .. "," .. def:getY() .. ","
+                              .. def:getW() .. "," .. def:getH()
+                    -- The legacy key is checked as well as the new one, so a
+                    -- save written before the key changed does not have every
+                    -- house it already served handed a second rig.
+                    if not seen[key] and not wait[key]
+                            and not book[key] and not book[S.legacyKey(def)] then
+                        seen[key] = true
+                        local n = S.rigChance()
+                        if n > 0 and S.isResidential(def)
+                                and S.roll(def, 3, n) == 0 then
+                            -- Waiting, not served: its yard probably spans
+                            -- chunks that have not arrived.
+                            wait[key] = v
+                            S.DEFS[key] = def
+                            indexAdd(key, v)
+                        else
+                            book[key] = true
                         end
-                    else
-                        book[key] = true
+                    end
+                    -- A barn is decided separately, under its own key, and
+                    -- only a building that has a barn room is written down.
+                    local bkey = S.BARN_KEY .. key
+                    if not seen[bkey] and not wait[bkey] and not book[bkey]
+                            and S.isStorageBarn(def) then
+                        seen[bkey] = true
+                        local n = S.barnChance()
+                        if n > 0 and S.roll(def, 5, n) == 0 then
+                            wait[bkey] = v
+                            S.DEFS[bkey] = def
+                            indexAdd(bkey, v)
+                        else
+                            book[bkey] = true
+                        end
                     end
                 end
             end
         end
     end
+
+    -- Any chunk, new or not, may be the last piece of a waiting house's yard.
+    -- Its own squares are already readable during its own LoadChunk (measured
+    -- live, 169 chunks of 169), so the house is served from this very event.
+    if not origin then return end
+    local set = idx[floor(origin:getX() / 8) .. "," .. floor(origin:getY() / 8)]
+    if not set then return end
+    local keys = {}
+    for key in pairs(set) do keys[#keys + 1] = key end
+    -- A fixed order, so two neighbours finishing on the same chunk claim
+    -- their shared ground the same way every time.
+    table.sort(keys)
+    for i = 1, #keys do serve(book, wait, keys[i]) end
 end
 
 Events.LoadChunk.Add(S.onLoadChunk)

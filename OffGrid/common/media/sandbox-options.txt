@@ -91,3 +91,66 @@ option OffGrid.PickupLock
     translation = OffGrid_PickupLock,
     valueTranslation = OffGrid_PickupLock,
 }
+
+/* Building wiring and transformers (2026-09-24).
+
+   GridLinkRadius is how far one transformer's power line may run, to the
+   controller or to another transformer. It is longer than LinkRadius, which is
+   for panels and batteries, so that transformers can be spaced to keep a
+   street lit end to end: each lights its own GeneratorTileRange circle.
+
+   TransformerLoss is what each powered transformer draws doing nothing, in
+   watts, so a sprawling grid costs something to keep running. */
+
+option OffGrid.GridLinkRadius
+{
+    type = integer,
+    min = 8,
+    max = 60,
+    default = 30,
+    page = OffGrid,
+    translation = OffGrid_GridLinkRadius,
+}
+
+option OffGrid.TransformerLoss
+{
+    type = integer,
+    min = 0,
+    max = 500,
+    default = 25,
+    page = OffGrid,
+    translation = OffGrid_TransformerLoss,
+}
+
+/* Realistic Mode: panels produce what 1993 panels did (Alwar's figures on the
+   suggestions board, 2026-09-25). OG_Model.ARRAY_SPEC_1993. */
+option OffGrid.RealisticMode
+{
+    type = boolean,
+    default = false,
+    page = OffGrid,
+    translation = OffGrid_RealisticMode,
+}
+
+/* One residential house in this many gets a yard rig, and one storage barn in
+   this many holds spare panels and racks, on newly generated ground only. 0
+   turns it off. */
+option OffGrid.RigChance
+{
+    type = integer,
+    min = 0,
+    max = 500,
+    default = 15,
+    page = OffGrid,
+    translation = OffGrid_RigChance,
+}
+
+option OffGrid.BarnStockChance
+{
+    type = integer,
+    min = 0,
+    max = 100,
+    default = 2,
+    page = OffGrid,
+    translation = OffGrid_BarnStockChance,
+}

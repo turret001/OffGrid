@@ -189,6 +189,50 @@ module Base
         Tags                = base:hasmetal;base:showcondition,
     }
 
+    item OffGridTransformer
+    {
+        DisplayName         = Transformer,
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 26.0,
+        Icon                = OffGridTransformer,
+        WorldObjectSprite   = offgrid_01_217,
+        ConditionMax        = 100,
+        MetalValue          = 200.0,
+        Tooltip             = Tooltip_OffGridTransformer,
+        RequiresEquippedBothHands = true,
+        Tags                = base:heavyitem;base:hasmetal;base:showcondition,
+    }
+
+    item OffGridGardenLamp
+    {
+        DisplayName         = Solar Garden Lamp,
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 2.5,
+        Icon                = OffGridGardenLamp,
+        WorldObjectSprite   = offgrid_01_225,
+        ConditionMax        = 100,
+        MetalValue          = 15.0,
+        Tooltip             = Tooltip_OffGridGardenLamp,
+        Tags                = base:hasmetal;base:showcondition,
+    }
+
+    item OffGridStreetLamp
+    {
+        DisplayName         = Solar Street Lamp,
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 18.0,
+        Icon                = OffGridStreetLamp,
+        WorldObjectSprite   = offgrid_01_233,
+        ConditionMax        = 100,
+        MetalValue          = 110.0,
+        Tooltip             = Tooltip_OffGridStreetLamp,
+        RequiresEquippedBothHands = true,
+        Tags                = base:heavyitem;base:hasmetal;base:showcondition,
+    }
+
     /* The controller is the piece that actually delivers power, and the only
        way to do that in B42 is to be a real IsoGenerator: a square is powered
        iff chunk.isGeneratorPoweringSquare() finds an activated generator in
@@ -457,7 +501,7 @@ module Base
         Icon                = OffGridManual,
         BoredomChange       = -18,
         StressChange        = -10,
-        LearnedRecipes      = MakeOffGridArraySalvage;MakeOffGridFlatSalvage;MakeOffGridBankCrate;MakeOffGridWallCrate;MakeOffGridArray;MakeOffGridFlat;MakeOffGridBank;MakeOffGridWallBank;MakeOffGridController,
+        LearnedRecipes      = MakeOffGridArraySalvage;MakeOffGridFlatSalvage;MakeOffGridBankCrate;MakeOffGridWallCrate;MakeOffGridArray;MakeOffGridFlat;MakeOffGridBank;MakeOffGridWallBank;MakeOffGridController;MakeOffGridTransformer,
         StaticModel         = Magazine,
         WorldStaticModel    = MagazineElec1Ground,
         Tags                = base:magazine,

@@ -48,9 +48,13 @@ local L = OffGrid.Loot
 L.PLACES = {
     -- 2.10.0: a full loot of Rosewood came out at about three handbooks, a
     -- third of them in garage lockers and fifteen per cent in the bookstore
-    -- and shops where players actually look. The hardware store's own
-    -- magazine rack (ToolStoreBooks, forced on the rack tiles) now carries
-    -- it, and the bookstore's forced blue-collar roll pays out twice as often.
+    -- and shops where players actually look. The bookstore's forced
+    -- blue-collar roll pays out twice as often since then. ToolStoreBooks was
+    -- meant to put it on the hardware store's magazine rack, but the rack
+    -- tiles stand under one tool-store shelf on the whole map, and there its
+    -- forced entry waits behind seven other forced lists; the list's
+    -- handbooks come from garage-storage shelves instead (loot replay,
+    -- 2026-09-26).
     OffGridManual = {
         ElectronicStoreMagazines = 5,
         BookstoreBlueCollar      = 4,
@@ -107,10 +111,18 @@ L.PLACES = {
 }
 
 -- Weights are a PER-ROLL PER-CENT CHANCE, not a share of a weighted pick:
--- the engine rolls every entry in a chosen list independently, `rolls` times.
--- Most of these lists roll four times, so a weight of 0.5 is about a two per
--- cent chance per container that draws the list. These are heavy, expensive
--- objects and they are meant to be a find.
+-- the engine rolls every entry in a chosen list independently, `rolls` times,
+-- and scales each chance by a sandbox loot setting first: x0.8 for panels,
+-- racks and lamps ("Other" on Apocalypse), x0.6 for the books
+-- (RecipeResource), and x0.6 for controllers, whose base:generator tag puts
+-- them under the Generators setting (Rare). Most lists roll four times, so a
+-- panel at 0.5 is a 1.6 per cent chance per container that draws the list.
+-- And a part too heavy for the container ends the rest of that list's rolls,
+-- which costs about a fifth of the panels and racks rolled. Measured with a
+-- replay of the 42.20 loot engine over every container on the map
+-- (2026-09-26): before the salvage weights below were doubled up, a full loot
+-- of the whole map held about 23 panels and 15 racks; with them, about 100
+-- and 66.
 
 --- New stock. Every list here but GeneratorRoom is already flagged `isShop`,
 --  which is what makes its contents spawn at full condition, so nothing extra
@@ -124,7 +136,12 @@ L.RETAIL = {
     ToolStoreMisc = {
         OffGridArray = 0.5, OffGridFlat = 0.5, OffGridBank = 0.4,
         OffGridWallBank = 0.4, OffGridController = 0.4,
+        OffGridGardenLamp = 0.6,
     },
+    -- The solar garden light is a garden-centre shelf item, boxed and cheap:
+    -- the one Off-Grid thing a player is likely to find new rather than build.
+    GardenStoreMisc = { OffGridGardenLamp = 2.0 },
+    GardenStoreTools = { OffGridGardenLamp = 1.0 },
     ToolStoreTools = {
         OffGridArray = 0.3, OffGridFlat = 0.3, OffGridController = 0.3,
     },
@@ -133,10 +150,12 @@ L.RETAIL = {
         OffGridWallBank = 0.3, OffGridController = 0.5,
         OffGridControllerMPPT = 0.15,
         OffGridArrayMono = 0.1, OffGridBankSealed = 0.1,
+        OffGridGardenLamp = 0.4,
     },
-    -- Reached by electronicstore.locker and technical.other only, so it is
-    -- rare by placement rather than by weight. The best-stocked room in the
-    -- game for this mod, and it should feel like it.
+    -- Reached by electronicstore.locker and technical.other only: 27
+    -- containers on the whole map, 14 of them lockers that hold 10 kg, which
+    -- no panel fits. So it is rare by placement rather than by weight, about
+    -- three Off-Grid finds in a full loot of the map.
     GeneratorRoom = {
         OffGridArray = 1.5, OffGridFlat = 1.0, OffGridBank = 1.2,
         OffGridWallBank = 1.0, OffGridController = 1.5,
@@ -145,7 +164,7 @@ L.RETAIL = {
     },
     -- THE CONTROLLER WAS THE SCARCE PIECE, and by a wide margin. Replaying
     -- the 42.20 loot engine over every container in Rosewood gave 0.42
-    -- controllers for a full loot (0.55 in Muldraugh) against eight or nine
+    -- controllers for a full loot (0.55 in Muldraugh) against about seven
     -- car battery chargers, while players reported piles of panels and
     -- racks. Two causes: every controller item carries base:generator, which
     -- the generator sprite map needs and which also puts its loot under the
@@ -162,12 +181,19 @@ L.RETAIL = {
 --- Used, second-hand, sitting in a shed. Mostly the salvaged grades, because
 --  a cracked scrap-framed panel is the one the story wants: the first array a
 --  player ever touches should be one they could not have built.
+--
+--  The weights below were raised on 2026-09-26, at Can's call, to twice what
+--  the loot replay first proposed, after it showed a full loot of the whole
+--  map holding about 23 panels and every barn in the county 0.4 parts. The
+--  controllers were left alone: they were fixed in 2.10.0 and still read
+--  right.
 L.SALVAGE = {
     -- mechanic 85 rooms plus the 588 rooms named `garage`, which alias onto
-    -- the mechanic table. The thematic home for a used controller.
+    -- the mechanic table. Drawn at most once per room, and at weight 20 of
+    -- 325 against the other shelf lists: about 45 fills on the whole map.
     MechanicShelfElectric = {
-        OffGridArraySalvage = 0.6, OffGridBankCrate = 0.5,
-        OffGridWallCrate = 0.4, OffGridController = 0.5,
+        OffGridArraySalvage = 2.4, OffGridBankCrate = 2.0,
+        OffGridWallCrate = 1.6, OffGridController = 0.5,
     },
     -- garagestorage is the widest storage room in both small towns (55 room
     -- records in Rosewood, 85 in Muldraugh), and its metal shelves draw this
@@ -184,35 +210,59 @@ L.SALVAGE = {
     CrateElectronics = {
         OffGridController = 0.3,
     },
-    -- 201 barn rooms spread across the rural map. Somebody was running a pump.
+    -- 201 barn rooms on the map, and 96 per cent of what they hold is
+    -- feeding troughs, which never roll loot at all (the engine marks them
+    -- looted and fills them with feed). The 60 crates and shelves left, in
+    -- 25 barns, draw this list only when it beats animal feed, about nine
+    -- times on the whole map, hence the weight. A barn's real find is not
+    -- loot: OG_Seed stands a few surplus panels and battery racks, as
+    -- tiles, in about one STORAGE barn in four (hay, no livestock), and the
+    -- farm-storage rooms beside them carry parts in their shelves and crates
+    -- through CrateFarming below.
+    --
+    -- Not CrateAnimalFeed, although it is what most barn crates draw. Can,
+    -- 2026-09-26: a solar panel in a crate of animal feed is not a story.
     BarnTools = {
-        OffGridArraySalvage = 0.5, OffGridFlatSalvage = 0.4,
-        OffGridBankCrate = 0.4,
+        OffGridArraySalvage = 3.0, OffGridFlatSalvage = 2.4,
+        OffGridBankCrate = 2.4, OffGridWallCrate = 1.6,
+    },
+    -- Mostly the farm-storage rooms beside the barns (about 70 per cent of
+    -- its fills), which no Off-Grid list reached before; also closets,
+    -- storage units and warehouses.
+    CrateFarming = {
+        OffGridArraySalvage = 0.6, OffGridFlatSalvage = 0.5,
+        OffGridBankCrate = 0.5,
     },
     -- 11 references, and the name says it: an off-grid household's shelf.
+    -- Its containers are household ones that hold 10 to 25 kg, so a heavy
+    -- part here costs a little vanilla loot too (see the replay notes).
     Homesteading = {
-        OffGridArraySalvage = 0.6, OffGridFlatSalvage = 0.5,
-        OffGridBankCrate = 0.5, OffGridWallCrate = 0.4,
-        OffGridController = 0.3,
+        OffGridArraySalvage = 3.0, OffGridFlatSalvage = 2.4,
+        OffGridBankCrate = 2.4, OffGridWallCrate = 2.0,
+        OffGridController = 0.5,
     },
-    FarmerTools = {
-        OffGridArraySalvage = 0.4, OffGridBankCrate = 0.3,
-    },
+    -- FarmerTools was here, and never spawned anything: only the Farmer
+    -- PROFESSION table names it, and that table is filled only from the debug
+    -- menu. tests/test_content.py now leaves profession tables out of its
+    -- reachability check, which is how it passed.
+    --
     -- Already flagged isWorn, so the engine wears these down itself and the
     -- handler below deliberately leaves them alone.
     CrateToolsOld = {
-        OffGridArraySalvage = 0.3, OffGridFlatSalvage = 0.25,
-        OffGridBankCrate = 0.25,
+        OffGridArraySalvage = 1.2, OffGridFlatSalvage = 1.0,
+        OffGridBankCrate = 1.0,
     },
-    -- electronicstore.locker.
+    -- electronicstore.metal_shelves.
     ElectricianTools = {
         OffGridArraySalvage = 0.8, OffGridBankCrate = 0.6,
         OffGridController = 0.5,
     },
     -- garagestorage is 1496 rooms, by far the widest reach in this table, so
-    -- it carries the lowest weight of the lot bar one.
+    -- it carries a low weight; its metal shelves are still the biggest
+    -- single source of salvage on the map.
     GarageTools = {
-        OffGridArraySalvage = 0.15, OffGridBankCrate = 0.12,
+        OffGridArraySalvage = 0.9, OffGridFlatSalvage = 0.6,
+        OffGridBankCrate = 0.7, OffGridWallCrate = 0.5,
         OffGridController = 0.15,
     },
     -- all.toolcabinet, which is every tool cabinet in every room the map

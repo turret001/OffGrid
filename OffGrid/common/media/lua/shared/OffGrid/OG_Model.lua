@@ -91,8 +91,50 @@ M.CTRL_SPEC = {
     mppt  = { eff = 0.965, harvest = 1.10 },
 }
 
-function M.arraySpec(tier)
+--- REALISTIC MODE: 1993 panels, from Alwar on the suggestions board
+--  (2026-09-25), taken as he gave them. A 1993 module was 129.3 x 33 cm, so a
+--  32-degree frame holds three of them, 0.43 m2 each; top cells of the day
+--  ran 13-14 per cent, ordinary panels 10-11, and makeshift is salvaged or
+--  degraded cells soldered together. Soiling, wear and the temperature
+--  coefficients are the ordinary figures. A standard frame makes about a
+--  quarter of what it does otherwise (142 W against 574 W in full sun).
+M.ARRAY_SPEC_1993 = {
+    makeshift = { area = 0.43, eff = 0.05, temp = -0.0050,
+                  panels = 3, soil = 1.6, wear = 1.7 },
+    standard  = { area = 0.43, eff = 0.11, temp = -0.0040,
+                  panels = 3, soil = 1.0, wear = 1.0 },
+    premium   = { area = 0.43, eff = 0.14, temp = -0.0029,
+                  panels = 3, soil = 0.7, wear = 0.5 },
+}
+
+--- Is Realistic Mode on? The sandbox answers it: OG_Parts, the one file that
+--  reads SandboxVars, replaces this. Off until then, so the model stays pure
+--  for every test that loads it alone.
+M.isRealistic = M.isRealistic or function() return false end
+
+--- A frame's spec in the ordinary mode, whatever mode is running. This is
+--  the one a frame's stored panel count is written in.
+function M.baseArraySpec(tier)
     return M.ARRAY_SPEC[tier or "standard"] or M.ARRAY_SPEC.standard
+end
+
+--- A frame's spec in the mode that is running.
+function M.arraySpec(tier)
+    if M.isRealistic() then
+        return M.ARRAY_SPEC_1993[tier or "standard"] or M.ARRAY_SPEC_1993.standard
+    end
+    return M.baseArraySpec(tier)
+end
+
+--- How many panels a frame carries in the mode that is running. The count a
+--  frame stores (d.panels, at placement) is always in the ordinary mode's
+--  terms, so switching the mode changes what this reads and never what is
+--  written into the world.
+function M.framePanels(stored, tier)
+    local base = M.baseArraySpec(tier)
+    local n = stored or base.panels
+    if not M.isRealistic() then return n end
+    return n * M.arraySpec(tier).panels / base.panels
 end
 
 function M.bankSpec(tier)
@@ -432,7 +474,7 @@ end
 function M.arrayOutput(array, env)
     local spec = M.arraySpec(array.tier)
     local mount = M.mountSpec(array.mount)
-    local panels = max(0, array.panels or spec.panels)
+    local panels = max(0, M.framePanels(array.panels, array.tier))
     if panels == 0 then return 0, 0 end
 
     local tilt = array.tilt or mount.tilt
@@ -466,6 +508,167 @@ function M.arrayOutput(array, env)
     -- never distorts the physics that produced it
     watts = watts * (env.outputScale or 1)
     return max(0, watts), poa
+end
+
+------------------------------------------------------------------ solar lamps
+
+--- The standalone lamps (2026-09-24). Each has its own panel and battery and
+--  is never wired. panelW is the module at 1000 W/m^2, wh the battery, drawW
+--  what the lamp uses while lit, tilt the panel's. Sized so a clear summer
+--  day fills the battery and a full one lasts a long night: the garden
+--  light's 30 Wh runs 15 hours at 2 W, the street light's 480 Wh 16 hours at
+--  30 W. A dull week runs them down, as it does a real one.
+M.LAMP_SPEC = {
+    garden = { panelW = 6,   wh = 30,  drawW = 2,  tilt = 0 },
+    street = { panelW = 110, wh = 480, drawW = 30, tilt = 30 },
+}
+-- Dusk and dawn are the town's street lights' moments. Vanilla lights a street
+-- light while GameTime's night is at least 0.5 (LightingJNI.java:282), and
+-- that is the climate's night strength (GameTime.java:833-835): 0 by day,
+-- rising from the day's dusk to 1 a quarter of the way into the night, back to
+-- 0 at its dawn, from the clock alone (ClimateValues.java:288-300; see
+-- M.nightStrength). The lamps read the same value, so a lamp and the street
+-- light beside it switch in the same minute, and a replay computes it for any
+-- past hour. It ignores the weather, so a lightning flash, which lifts the
+-- daylight reading to near noon for a moment (ThunderStorm.java:263-271), no
+-- longer reads as dawn. Until 2026-09-26 the lamps read that daylight (dusk
+-- 0.45, dawn 0.55) and the replay a sun-height curve of its own, and the two
+-- disagreed by hours.
+M.LAMP_NIGHT = 0.5
+-- A lamp fresh from the workbench comes half charged, so one put down at
+-- night shows it works before its first day in the sun.
+M.LAMP_FRESH = 0.5
+
+function M.lampSpec(tier)
+    return M.LAMP_SPEC[tier or "garden"] or M.LAMP_SPEC.garden
+end
+
+--- Charge drained per game minute while lit, as a fraction of the battery.
+--  The engine does the draining: this is the IsoLightSwitch's delta.
+function M.lampDelta(tier)
+    local s = M.lampSpec(tier)
+    return s.drawW / s.wh / 60
+end
+
+--- Watts the lamp's panel makes now: the same sun as an array
+--  (M.planeIrradiance and the engine's daylight gate), on a small module
+--  facing the way the lamp faces. Nothing under a roof.
+function M.lampWatts(tier, facing, env, sunlit)
+    if not sunlit or not env then return 0 end
+    local s = M.lampSpec(tier)
+    local sun = M.solarHour(env.hour, env.dayOfYear, env.noon, env.dayHours,
+                            env.latitude)
+    local poa = M.planeIrradiance(env.dayOfYear, sun, facing or "S", env,
+                                  env.latitude, s.tilt)
+    if poa <= 0 then return 0 end
+    if env.daylight ~= nil then
+        if env.daylight <= 0.02 then return 0 end
+        poa = poa * clamp(env.daylight * 1.25, 0, 1)
+    end
+    return max(0, s.panelW * poa / 1000 * (env.outputScale or 1))
+end
+
+--- The engine's cosine ease between a and b (ClimateManager.clerp).
+local function clerp(t, a, b)
+    local t2 = (1 - cos(t * pi)) / 2
+    return a * (1 - t2) + b * t2
+end
+
+--- The climate's night strength at clock hour `hour` on a day whose dawn and
+--  dusk are `dawn` and `dusk`, in hours: ClimateValues' lerpNight, which is
+--  ClimateManager.getTimeLerpHours(hour, dusk, dawn, clerp) doubled and
+--  clamped (ClimateValues.java:292-295; getTimeLerp, ClimateManager.java:
+--  2169-2197). 0 by day, 0.5 a sixth of the way into the night, 1 from a
+--  quarter of the way until a quarter before dawn. Endless Night and Endless
+--  Day skip this in the engine (1 and 0); the caller handles them. nil for a
+--  day the engine could not describe.
+function M.nightStrength(hour, dawn, dusk)
+    if type(hour) ~= "number" or type(dawn) ~= "number" or type(dusk) ~= "number"
+            or hour ~= hour or dawn ~= dawn or dusk ~= dusk then
+        return nil
+    end
+    local cur = clamp(hour / 24, 0, 1)
+    local lo = clamp(dusk / 24, 0, 1)
+    local hi = clamp(dawn / 24, 0, 1)
+    local v
+    if lo <= hi then
+        if cur < lo or cur > hi then
+            v = 0
+        else
+            local mid = (hi - lo) * 0.5
+            if mid <= 0 then return 0 end
+            local c = cur - lo
+            if c < mid then v = clerp(c / mid, 0, 1) else v = clerp((c - mid) / mid, 1, 0) end
+        end
+    elseif cur < lo and cur > hi then
+        v = 0
+    else
+        -- the night runs over midnight, as every Normal-cycle night does
+        local off = 1 - lo
+        local c = (cur >= lo) and (cur - lo) or (cur + off)
+        local mid = (hi + off) * 0.5
+        if c < mid then v = clerp(c / mid, 0, 1) else v = clerp((c - mid) / mid, 1, 0) end
+    end
+    return clamp(v * 2, 0, 1)
+end
+
+--- Is it night for a lamp? The night strength at or above the street
+--  lights' 0.5. With no reading at all, as it was.
+function M.lampNight(night, wasNight)
+    if type(night) ~= "number" or night ~= night then return wasNight == true end
+    return night >= M.LAMP_NIGHT
+end
+
+--- The charge after `minutes` at `watts` in, as a fraction of the battery.
+function M.lampCharge(tier, charge, watts, minutes)
+    local s = M.lampSpec(tier)
+    return clamp((charge or 0) + (watts or 0) * (minutes or 0) / 60 / s.wh, 0, 1)
+end
+
+--- Replay hours the lamp spent out of memory, the way it runs in memory: the
+--  panel charges whenever the sun reaches it, the lamp burns only while it is
+--  lit, and only a change between day and night switches it (on at dusk, off
+--  at dawn), so a lamp put out by hand stays out until the next dusk. It goes
+--  out when it runs empty, and one with no bulb never lights.
+--  `on` and `night` are how it left (a `night` of nil means it had not yet
+--  seen day or night, and the first step counts as a change); `bulb` false
+--  for no bulb. `envAt(h)` gives the environment at hour offset h from the
+--  start, with `night` the night strength (M.nightStrength) and `daylight`
+--  the panel's light; the last hour may be partial.
+--  Returns the charge, whether it ends lit, and whether it ends in night.
+--
+--  Each hour is judged at its middle: the sun and the switch there stand for
+--  the whole hour, so a dusk or dawn inside it is at most half an hour out,
+--  either way. The state at the start is the one the lamp left with, never
+--  judged again (a second opinion there switched a lamp at the very moment
+--  it left, 2026-09-26).
+--
+--  It assumed the automatic switch until 2026-09-26: a lamp switched off by
+--  hand came back lit after an absence inside the same night, with the
+--  absence billed as burning.
+function M.lampReplay(tier, facing, charge, hours, envAt, sunlit, on, night, bulb)
+    local s = M.lampSpec(tier)
+    on = (on == true) and bulb ~= false
+    local done = 0
+    while done < hours do
+        local step = min(1, hours - done)
+        local env = envAt(done + step / 2)
+        local was = night
+        night = M.lampNight(env and env.night, night)
+        if night ~= was then on = night and bulb ~= false end
+        charge = M.lampCharge(tier, charge,
+                              M.lampWatts(tier, facing, env, sunlit), step * 60)
+        if on then
+            if charge <= 0 then
+                on = false
+            else
+                charge = clamp(charge - s.drawW * step / s.wh, 0, 1)
+                if charge <= 0 then on = false end
+            end
+        end
+        done = done + step
+    end
+    return charge, on, night
 end
 
 ---------------------------------------------------------------- battery bank
@@ -1331,13 +1534,29 @@ end
 --  controller. An array is never wired to a bank: the controller is what sits
 --  between generation and storage, and letting a panel hang off a battery rack
 --  would say otherwise.
+--
+--  A transformer lands on the controller or on another transformer: a grid
+--  runs out from the controller, transformer to transformer, and never
+--  through a panel or a rack.
 function M.wireLegal(kind, targetKind)
     if targetKind == "controller" then
-        return kind == "array" or kind == "bank"
+        return kind == "array" or kind == "bank" or kind == "transformer"
     end
     if kind == "array" then return targetKind == "array" end
     if kind == "bank" then return targetKind == "bank" end
+    if kind == "transformer" then return targetKind == "transformer" end
     return false
+end
+
+--- How long one cable between these two kinds may be. A power line to or
+--  from a transformer takes the grid's reach, so transformers can be spaced
+--  to keep a street lit end to end; everything else keeps the short run a
+--  panel or a battery lead has.
+function M.cableReach(kind, targetKind, linkRadius, gridRadius)
+    if kind == "transformer" or targetKind == "transformer" then
+        return gridRadius or linkRadius
+    end
+    return linkRadius
 end
 
 

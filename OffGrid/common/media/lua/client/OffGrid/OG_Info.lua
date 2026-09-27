@@ -124,7 +124,8 @@ local function specRows(obj, info, d)
     if info.kind == "array" then
         local spec = M.arraySpec(info.tier)
         local mount = M.mountSpec(info.mount)
-        add(getText("IGUI_OffGrid_InfoModules"), tostring(d.panels or spec.panels))
+        add(getText("IGUI_OffGrid_InfoModules"),
+            tostring(math.floor(M.framePanels(d.panels, info.tier) + 0.5)))
         add(getText("IGUI_OffGrid_InfoEff"), pct(spec.eff))
         add(getText("IGUI_OffGrid_InfoTilt"),
             string.format("%d deg", math.floor(mount.tilt + 0.5)))
@@ -240,6 +241,14 @@ local function specRows(obj, info, d)
         end
         add(getText("IGUI_OffGrid_InfoBanks"),
             P.count("IGUI_OffGrid_BankLine", d.bankCount or 0))
+        -- What the system reaches beyond the controller's own circle: its
+        -- transformers and the buildings wired to it (OG_Distrib writes both).
+        if (d.xfmrCount or 0) > 0 then
+            add(getText("IGUI_OffGrid_InfoTransformers"), tostring(math.floor(d.xfmrCount)))
+        end
+        if (d.wiredCount or 0) > 0 then
+            add(getText("IGUI_OffGrid_InfoBuildings"), tostring(math.floor(d.wiredCount)))
+        end
         -- How far the power goes: the game's generator range. Red when LG
         -- Extended Electricity has taken that range over and left it at one
         -- tile (OG_Interop); OG_Info:refresh adds the reason under the rows.
@@ -248,6 +257,24 @@ local function specRows(obj, info, d)
         local short = I and I.lgeeTakeover and I.lgeeTakeover()
         add(getText("IGUI_OffGrid_InfoReach"),
             P.count("IGUI_OffGrid_TileCount", reach), short and "bad" or nil)
+
+    elseif info.kind == "transformer" then
+        -- Whether the grid is live is on the lamp, and so on the sprite state
+        -- the controller drives (OG_System).
+        local lit = info.state == "on"
+        add(getText("IGUI_OffGrid_InfoState"),
+            getText(lit and "IGUI_OffGrid_GridOn" or "IGUI_OffGrid_GridOff"),
+            lit and "good" or "dim")
+        local I = OffGrid.Interop
+        local reach = I and I.generatorRange and I.generatorRange() or 20
+        local short = I and I.lgeeTakeover and I.lgeeTakeover()
+        add(getText("IGUI_OffGrid_InfoReach"),
+            P.count("IGUI_OffGrid_TileCount", reach), short and "bad" or nil)
+        add(getText("IGUI_OffGrid_InfoLoss"),
+            string.format("%d W", math.floor(tonumber(P.sandbox("TransformerLoss")) or 25)))
+        local Bd = OffGrid.Buildings
+        local n = Bd and #Bd.decodeTargets(d.bw) or 0
+        add(getText("IGUI_OffGrid_InfoBuildings"), tostring(n))
     end
 
     return rows

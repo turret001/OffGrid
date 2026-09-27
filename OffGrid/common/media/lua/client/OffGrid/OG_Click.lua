@@ -49,6 +49,11 @@ local function busy(playerObj)
     -- Placing or rotating a moveable owns the cursor; do not take its click.
     local cell = getCell and getCell()
     if cell and cell.getDrag and cell:getDrag(0) then return true end
+    -- The Building Picker owns the cursor too: a click there is picking a
+    -- building, not asking for this part's panel.
+    if OffGrid.Picker and OffGrid.Picker.isOpen and OffGrid.Picker.isOpen(playerObj) then
+        return true
+    end
     return false
 end
 

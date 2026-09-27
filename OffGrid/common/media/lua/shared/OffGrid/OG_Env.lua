@@ -74,6 +74,8 @@ function E.read()
         env.temperature = cm:getTemperature() or 18
         env.groundSnow = cm:getSnowFracNow() or 0
         env.daylight = cm:getDayLightStrength()
+        -- what vanilla's street lights switch on, and the solar lamps with them
+        env.night = P.try(cm, "getNightStrength")
         env.snowing = cm:getPrecipitationIsSnow() and env.precipitation > 0
         env.thunder = cm:getIsThunderStorming() or false
         env.wind = cm:getWindIntensity() or 0

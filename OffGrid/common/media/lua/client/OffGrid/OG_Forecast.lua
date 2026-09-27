@@ -87,7 +87,7 @@ end
 local function yardstick()
     return {
         arrays = { { facing = "S", mount = "ground", tier = "standard",
-                     panels = M.arraySpec("standard").panels,
+                     panels = M.baseArraySpec("standard").panels,
                      condition = 100, soiling = 0, snow = 0 } },
         inverterEff = M.ctrlSpec("basic").eff,
         harvest = M.ctrlSpec("basic").harvest,
@@ -140,12 +140,12 @@ local function systemNear(playerObj)
             end
             grp.count = grp.count + 1
             if E.isSunlit(found[i]:getSquare()) then
-                local n = ad.panels or M.arraySpec(ai.tier).panels
+                local n = ad.panels or M.baseArraySpec(ai.tier).panels
                 grp.arrays[#grp.arrays + 1] = {
                     facing = ai.facing, mount = ai.mount, tier = ai.tier,
                     panels = n, condition = ad.condition or 100,
                     soiling = ad.soiling or 0, snow = ad.snow or 0 }
-                grp.panels = grp.panels + n
+                grp.panels = grp.panels + M.framePanels(n, ai.tier)
             end
         end
     end

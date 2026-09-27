@@ -29,6 +29,7 @@ if isClient() then return end
 require "OffGrid/OG_Model"
 require "OffGrid/OG_Parts"
 require "OffGrid/OG_Env"
+require "OffGrid/OG_Loads"
 
 OffGrid = OffGrid or {}
 OffGrid.System = OffGrid.System or {}
@@ -81,19 +82,9 @@ local BATT_CELLS = 18
 local SYNC_EVERY = 10       -- in-game minutes between multiplayer pushes
 local REACH = 3             -- squares; arm's length, the same rule the menus use
 
--- Watts drawn by each kind of appliance while it is actually running. These
--- are the mod's own numbers: vanilla's getGeneratorPowerConsumption() only
--- ever returns non-zero for fridges, freezers and fuel pumps, so it is no use
--- as a load model.
-local DRAW = {
-    fridge = 120, freezer = 150, fridgefreezer = 200,
-    light = 55, stove = 1400, microwave = 900,
-    toaster = 800, coffeemaker = 1000, pump = 500,
-    washer = 480, dryer = 1800, washerdryer = 1200,
-    radio = 22, tv = 95, charger = 250,
-}
-
--------------------------------------------------------------------- helpers
+-- What each light or appliance draws, and whether it runs, is OG_Loads's:
+-- shared, so the coverage overlay on a client lights exactly what this bills.
+local objectDraw = OffGrid.Loads.objectDraw
 
 local function key(x, y, z) return x .. "," .. y .. "," .. z end
 
@@ -135,180 +126,6 @@ local function sync(obj)
     if obj and obj.transmitModData then obj:transmitModData() end
 end
 
--- An appliance nothing here recognises still draws something. The engine's own
--- figure is a balance scale rather than watts (a light switch is 0.002 and a
--- fridge 0.08, which no real pair of appliances is), so there is no honest
--- conversion. This is the median of the mappings below, used only so a modded
--- appliance costs a plausible amount instead of nothing.
-local UNKNOWN_WATTS_PER_UNIT = 5000
-
---- What kind of appliance is this, whether or not it is running.
---
---  Classification is separate from activation so the LOADS page can list
---  a switched-off TV the way a real install sheet would: present, rated,
---  drawing nothing. Fridges and freezers first: the engine collapses both
---  into one constant and the mod wants to tell them apart. Returns kind,
---  rated watts, and whether the kind is refrigeration; nil for anything
---  the ladder cannot name (those still bill as "other" when running, but
---  an unknown idle object has no rated number worth printing).
--- Countertop cooking appliances the engine calls IsoStove. They carry
--- IsoType = IsoStove and NO container at all, so CellLoader's own isStove test
--- never sees them but ISMoveableSpriteProps does: put one down and it bills at
--- the oven's 1400 W. isMicrowave() cannot tell them apart either, because it
--- reads getContainer():isMicrowave() and their container is nil. The tile's own
--- GroupName and CustomName are the only thing left, and they are raw tiledef
--- data rather than anything translated, so they are safe to match on.
-local COUNTERTOP = {
-    ["Small Chrome Toaster"] = "toaster",
-    ["Coffee X-press"]       = "coffeemaker",
-    ["Espresso Deluxe"]      = "coffeemaker",
-}
-
---- One sprite property of a world object, or nil.
-local function spriteProp(obj, name)
-    local spr = try(obj, "getSprite")
-    local props = spr and try(spr, "getProperties")
-    if not props or not try(props, "has", name) then return nil end
-    return try(props, "get", name)
-end
-
---- The name a tile gives itself: "GroupName CustomName", the same pair the
---  game builds its moveable display name from.
-local function tileName(obj)
-    local g = spriteProp(obj, "GroupName")
-    local c = spriteProp(obj, "CustomName")
-    if not g and not c then return nil end
-    return ((g or "") .. " " .. (c or "")):gsub("^%s+", ""):gsub("%s+$", "")
-end
-
-local function classify(obj)
-    local fridge = try(obj, "getContainerByType", "fridge")
-    local freezer = try(obj, "getContainerByType", "freezer")
-    if fridge and freezer then return "fridgefreezer", DRAW.fridgefreezer, true end
-    if fridge then return "fridge", DRAW.fridge, true end
-    if freezer then return "freezer", DRAW.freezer, true end
-    -- The third thing vanilla itself bills, after fridges and freezers: piped
-    -- fuel makes couldBePoweredByGenerator true and getGeneratorPowerConsumption
-    -- answer 0.03, so a gas pump always reached the page, but as OTHER, which
-    -- tells the player nothing. A gas station is a common base.
-    if (try(obj, "getPipedFuelAmount") or 0) > 0 then
-        return "pump", DRAW.pump, false
-    end
-    if instanceof(obj, "IsoLightSwitch") then return "light", DRAW.light, false end
-    if instanceof(obj, "IsoStove") then
-        -- A microwave is an IsoStove too, so this test has to come first or
-        -- every microwave bills at the oven's rate under the oven's name.
-        -- Worse than the wrong number: the LOADS row is keyed by kind, and an
-        -- idle kind is hidden whenever that kind also has something running
-        -- (writePages), so a microwave sharing "stove" with a lit oven
-        -- disappears from the page entirely. Both tiles are IsoStove by the
-        -- tiledefs' own IsoType, which ISMoveableSpriteProps honours on
-        -- placement (corpus lua, line 2161); CellLoader's narrower isStove
-        -- test does not, which is why a map-spawned microwave draws nothing
-        -- and the same microwave put down by a player draws 1400 W.
-        if try(obj, "isMicrowave") then return "microwave", DRAW.microwave, false end
-
-        -- No container at all is what marks the countertop appliances out: an
-        -- oven has a stove container and a microwave has a microwave one.
-        if not try(obj, "getContainer") then
-            local kind = COUNTERTOP[tileName(obj) or ""]
-            if kind then return kind, DRAW[kind], false end
-            -- Something else small enough to stand on a worktop, which this
-            -- list has never heard of. Naming it an oven would be a guess with
-            -- a 1400 W price on it, so let it fall through to "other", where
-            -- the bill is scaled from what the engine actually reports rather
-            -- than from a nameplate we made up. A floor-standing IsoStove with
-            -- no container is a real oven (Bake-O-Matic) and keeps its name.
-            if spriteProp(obj, "IsTableTop") ~= nil then return nil end
-        end
-
-        return "stove", DRAW.stove, false
-    end
-    if instanceof(obj, "IsoStackedWasherDryer") then
-        return "washerdryer", DRAW.washerdryer, false
-    end
-    if instanceof(obj, "IsoCombinationWasherDryer") then
-        return "washerdryer", DRAW.washerdryer, false
-    end
-    if instanceof(obj, "IsoClothingDryer") then return "dryer", DRAW.dryer, false end
-    if instanceof(obj, "IsoClothingWasher") then return "washer", DRAW.washer, false end
-    if instanceof(obj, "IsoCarBatteryCharger") then return "charger", DRAW.charger, false end
-    if instanceof(obj, "IsoTelevision") then return "tv", DRAW.tv, false end
-    if instanceof(obj, "IsoRadio") then return "radio", DRAW.radio, false end
-    return nil
-end
-
---- Watts a single world object draws from THIS system right now.
---
---  Returns watts, cold?, kind, rated watts. Kind and rated come back even at
---  zero draw, so the caller can tell "idle appliance" from "not an
---  appliance"; a bare 0 is not an appliance at all.
---
---  The three questions the engine answers better than a hand-written ladder:
---    couldBePoweredByGenerator()   is this a candidate at all
---    ItemContainer.isObjectPowered(obj, false)  is the town grid still paying
---    getGeneratorPowerConsumption() > 0         is it switched on right now
---  This is verbatim the combination IsoGenerator.setSurroundingElectricity
---  uses. Everything a mod subclasses off those nine appliance classes is
---  counted for free, which the old ladder scored as zero.
-local function objectDraw(obj)
-    if not obj then return 0 end
-    if not try(obj, "couldBePoweredByGenerator") then return 0 end
-
-    -- A battery radio is not on your supply and never will be. IsoRadio
-    -- answers 0.01 only when the set is on AND not battery powered
-    -- (IsoRadio.java:29-31), so without this it sits on the LOADS page for
-    -- ever, dim, at a rated draw it can never take, and switching it on does
-    -- nothing. A bare 0 keeps it off the page entirely, the way anything that
-    -- is not an appliance is kept off. Deliberately narrow: IsoTelevision
-    -- ignores the battery flag and bills whenever it is on
-    -- (IsoTelevision.java:225-227), so a set that is not a radio is left alone.
-    if instanceof(obj, "IsoRadio") then
-        local dd = try(obj, "getDeviceData")
-        if dd and try(dd, "getIsBatteryPowered") then return 0 end
-    end
-    local kind, rated, coldKind = classify(obj)
-
-    -- Before the hydro shutoff the grid is still paying for this appliance, so
-    -- billing it to the bank would invent a load that is not there. Passing
-    -- includeGenerators = false is what makes this "grid only".
-    if ItemContainer and ItemContainer.isObjectPowered then
-        local ok, onGrid = pcall(ItemContainer.isObjectPowered, obj, false)
-        if ok and onGrid then return 0, false, kind, rated end
-    end
-
-    -- The engine's own on/off answer. A switched-off light, stove, TV, radio,
-    -- washer, dryer or charger all return 0 here, which is the half of the old
-    -- ladder that was wrong for the charger and missing for stacked units.
-    local raw = try(obj, "getGeneratorPowerConsumption") or 0
-    if raw <= 0 then return 0, false, kind, rated end
-
-    -- Mirror the engine's own exterior gate. setSurroundingElectricity only
-    -- powers an exterior appliance when AllowExteriorGenerator is on
-    -- (IsoGenerator.java:315), so with the option off an outdoor floodlight
-    -- was BILLED to the bank while drawing nothing the engine would honour --
-    -- phantom load, wrong runtime forecast.
-    local so = getSandboxOptions and getSandboxOptions()
-    local allowExt = so and so:getOptionByName("AllowExteriorGenerator")
-    if allowExt and allowExt.getValue and allowExt:getValue() == false then
-        local osq = try(obj, "getSquare")
-        if osq and try(osq, "isOutside") then return 0, false, kind, rated end
-    end
-
-    if kind == "washerdryer" and instanceof(obj, "IsoStackedWasherDryer") then
-        -- The only class whose draw is a SUM rather than a ternary: each half
-        -- runs independently, so the engine returns 0, 0.9 or 1.8.
-        local n = 0
-        if try(obj, "isWasherActivated") then n = n + 1 end
-        if try(obj, "isDryerActivated") then n = n + 1 end
-        if n == 0 then return 0, false, "washerdryer", rated end
-        return n == 2 and DRAW.washerdryer or DRAW.washer,
-               false, n == 2 and "washerdryer" or "washer", rated
-    end
-    if kind then return rated, coldKind, kind, rated end
-
-    return raw * UNKNOWN_WATTS_PER_UNIT, false, "other"
-end
 
 --- What the vanilla sandbox says a generator's reach is. Off-Grid uses the
 --  same numbers on purpose: the controller IS a generator as far as the engine
@@ -471,6 +288,10 @@ local function releaseClaim(nk, root)
     local pd = P.data(obj)
     if pd.sys == root then
         pd.sys = nil
+        -- A transformer's lamp shows its system's grid, and only that
+        -- system's tick turns it off. One left behind by a lift upstream kept
+        -- it lit with nothing behind it (live, 2026-09-24).
+        if kind == "transformer" then P.setState(obj, "off") end
         sync(obj)
     end
 end
@@ -575,6 +396,8 @@ function S.register(obj)
     if not sq then return end
     local info = P.describe(obj)
     if not info then return end
+    -- A solar lamp is never part of a system (OG_Lamps).
+    if info.kind == "lamp" then return end
     P.data(obj)
     local k = key(sq:getX(), sq:getY(), sq:getZ())
 
@@ -612,7 +435,7 @@ function S.register(obj)
                              -- sliced scan needs to publish its first figure.
                              load = d.demand or 0,
                              scanCold = 0, cold = d.coldWatts or 0,
-                             arrays = {}, banks = {},
+                             arrays = {}, banks = {}, xfmrs = {},
                              -- Its first sweep publishes as it goes (see
                              -- S.scanSlice), and its appliance list too when
                              -- the save carries none.
@@ -659,6 +482,9 @@ local function endSystem(x, y, z, wire)
     S.claimed[root] = nil
     S.pendingUnplug[root] = nil
     S.controllers[k] = nil
+    -- Its transformer circles and wired buildings go dark with it, now, not
+    -- at the next tick.
+    if OffGrid.Distrib then OffGrid.Distrib.forget(k) end
     for i = #S.order, 1, -1 do
         if S.order[i] == k then table.remove(S.order, i) end
     end
@@ -722,7 +548,7 @@ end
 function S.relink(rec)
     local ctrl = objectOn(rec.x, rec.y, rec.z, "controller")
     if not ctrl then
-        rec.arrays, rec.banks = {}, {}
+        rec.arrays, rec.banks, rec.xfmrs = {}, {}, {}
         rec.relinkAt = E.worldHours()
         return
     end
@@ -798,12 +624,13 @@ function S.relink(rec)
     for n = 1, #gone do wire = M.wireDrop(wire, gone[n]) end
     setWire(ctrl, root, wire)
 
-    local arrays, banks = {}, {}
+    local arrays, banks, xfmrs = {}, {}, {}
     for n = 1, #order do
         local hit = objOf[order[n]]
         if hit then
             if hit.kind == "array" then arrays[#arrays + 1] = hit.obj
-            elseif hit.kind == "bank" then banks[#banks + 1] = hit.obj end
+            elseif hit.kind == "bank" then banks[#banks + 1] = hit.obj
+            elseif hit.kind == "transformer" then xfmrs[#xfmrs + 1] = hit.obj end
             if hit.kind ~= "controller" then
                 local pd = P.data(hit.obj)
                 if pd.sys ~= root then
@@ -816,9 +643,27 @@ function S.relink(rec)
 
     S.claimed[root] = seen
 
+    -- The parts the walk passed through without seeing: their squares are
+    -- not in memory. OG_Distrib keeps a far transformer's circle and wiring
+    -- in the plan from what it last knew, and treats a system whose panels or
+    -- batteries are out of memory as away rather than as empty.
+    local far = {}
+    for n = 1, #order do
+        local nk = order[n]
+        if nk ~= root and not objOf[nk] then
+            local fx, fy, fz, fkind = M.parseNodeKey(nk)
+            if fx then far[#far + 1] = { nk = nk, x = fx, y = fy, z = fz, kind = fkind } end
+        end
+    end
+
     rec.arrays = arrays
     rec.banks = banks
+    rec.xfmrs = xfmrs
+    rec.far = far
     rec.relinkAt = E.worldHours()
+    -- What the system adds beyond the controller's own circle -- transformer
+    -- circles and wired buildings -- follows what the walk just found.
+    if OffGrid.Distrib then OffGrid.Distrib.onRelink(rec, ctrl) end
 end
 
 --------------------------------------------------------- making a connection
@@ -908,6 +753,10 @@ function S.unplug(nk, sysHint)
         end
         if S.claimed[root] then S.claimed[root][nk] = nil end
         touchSystem(root)
+        -- A transformer lifted while the grid is live must not leave its
+        -- circle lit until the next tick.
+        local _, _, _, kind = M.parseNodeKey(nk)
+        if kind == "transformer" and OffGrid.Distrib then OffGrid.Distrib.unplugged(root) end
     end
 end
 
@@ -933,7 +782,9 @@ function S.connect(playerObj, args)
     if not sys then return false, "target is not in a system" end
 
     local dx, dy = e.ax - e.bx, e.ay - e.by
-    local reach = sandbox("LinkRadius")
+    -- A power line to or from a transformer runs further than a panel or
+    -- battery lead (M.cableReach); the client's menu asks the same question.
+    local reach = M.cableReach(e.ak, e.bk, sandbox("LinkRadius"), sandbox("GridLinkRadius"))
     if (dx * dx + dy * dy) > reach * reach then
         return false, "too far"
     end
@@ -1161,6 +1012,11 @@ end
 --  controller's demand to whatever happens to be near the player.
 function S.scanNear(rec)
     if not rec.drawn then return end
+    -- A system with transformers or wired buildings reaches beyond this
+    -- cylinder, and OG_Distrib walks its whole shape instead.
+    if rec.plan and rec.plan.extra and OffGrid.Distrib then
+        return OffGrid.Distrib.near(rec)
+    end
     local radius = powerRadius()
     local r2 = radius * radius
     local vr = powerLevels()
@@ -1221,6 +1077,9 @@ end
 --  on every GeneratorVerticalPowerRange level, 41x41x7 at the defaults) never
 --  lands in a single frame.
 function S.scanSlice(rec)
+    if rec.plan and rec.plan.extra and OffGrid.Distrib then
+        return OffGrid.Distrib.sweep(rec)
+    end
     local radius = powerRadius()
     local rows = radius * 2 + 1
     local perSlice = math.max(1, math.ceil(rows / SLICES))
@@ -1374,11 +1233,11 @@ local function gather(rec, env)
             if E.isSunlit(sq) then
                 arrays[#arrays + 1] = {
                     facing = info.facing, mount = info.mount, tier = info.tier,
-                    panels = d.panels or M.arraySpec(info.tier).panels,
+                    panels = d.panels or M.baseArraySpec(info.tier).panels,
                     condition = d.condition or 100,
                     soiling = d.soiling or 0, snow = d.snow or 0,
                 }
-                panels = panels + (d.panels or M.arraySpec(info.tier).panels)
+                panels = panels + M.framePanels(d.panels, info.tier)
             else
                 -- an array under a roof is still wired in and still counted;
                 -- it just never sees the sun, and saying so is the difference
@@ -1700,9 +1559,9 @@ end
 --  while the real one sat full. getObjectIndex is -1 for anything no longer in
 --  its square's list (IsoObject.java:4839).
 function S.staleLinks(rec)
-    local lists = { rec.arrays, rec.banks }
-    for l = 1, 2 do
-        local list = lists[l] or {}
+    local lists = { rec.arrays or {}, rec.banks or {}, rec.xfmrs or {} }
+    for l = 1, #lists do
+        local list = lists[l]
         for i = 1, #list do
             local ix = try(list[i], "getObjectIndex")
             if type(ix) ~= "number" or ix < 0 then return true end
@@ -1852,7 +1711,7 @@ local function writeColdChain(d, bank, env, coldW)
 end
 
 --- The monitor's LOADS, BATT and DAY pages.
-local function writePages(rec, d, env, tel, sliceToday)
+local function writePages(rec, d, env, tel, sliceToday, loss)
     -- LOADS: what is drawing, itemised, then what is merely connected, dim at
     -- its rated draw. A plain array of pairs rather than a keyed table, so the
     -- client draws it in a stable order. Active rows always outrank idle
@@ -1862,6 +1721,11 @@ local function writePages(rec, d, env, tel, sliceToday)
         local ll = {}
         for kk, kw in pairs(rec.kinds) do
             ll[#ll + 1] = { k = kk, w = math.floor(kw + 0.5) }
+        end
+        -- The transformers' standing loss is a load like any other, and
+        -- TOTAL already counts it, so it gets its own row.
+        if (loss or 0) > 0 then
+            ll[#ll + 1] = { k = "xfmr", w = math.floor(loss + 0.5) }
         end
         table.sort(ll, function(a, b) return a.w > b.w end)
         local il = {}
@@ -1997,9 +1861,17 @@ function S.updateController(rec, dt, hoursAgo, wet)
     env.degrade = sandbox("DegradeBank") ~= false
 
     if rec.relinkAt >= 0 and S.staleLinks(rec) then rec.relinkAt = -1 end
+    if OffGrid.Distrib and OffGrid.Distrib.farBack and OffGrid.Distrib.farBack(rec) then
+        rec.relinkAt = -1
+    end
     if rec.relinkAt < 0 or (now - rec.relinkAt) >= 0.5 then
         S.relink(rec)
     end
+    -- Panels or batteries out of memory while the controller is in it: this
+    -- tick cannot see the system's energy, so it does not run. lastHour stays
+    -- where it is, and the first whole tick settles the gap with the usual
+    -- catch-up; meanwhile OG_Distrib's estimate switches the wired grid.
+    if OffGrid.Distrib and OffGrid.Distrib.partial and OffGrid.Distrib.partial(rec) then return end
     S.scanSlice(rec)
     -- After the slice, so a square this tick's slice just walked is not
     -- read twice, and so the republish sees the slice's own work.
@@ -2007,8 +1879,11 @@ function S.updateController(rec, dt, hoursAgo, wet)
 
     local arrays, panels, bank, byTier, shaded = gather(rec, env)
     local lvdBefore = d.lvd == true
+    -- What every powered transformer draws doing nothing, on top of what is
+    -- switched on in reach (OG_Distrib.loss).
+    local loss = OffGrid.Distrib and OffGrid.Distrib.loss(rec) or 0
     local sys = { arrays = arrays, bank = bank,
-                  load = simLoad and (rec.load or 0) or 0,
+                  load = simLoad and ((rec.load or 0) + loss) or 0,
                   online = d.online and not d.trip,
                   lvd = d.lvd == true,
                   inverterEff = ctrl.eff, harvest = ctrl.harvest }
@@ -2082,12 +1957,24 @@ function S.updateController(rec, dt, hoursAgo, wet)
     d.arrayCount = #rec.arrays
     d.shaded = shaded
     d.bankCount = #rec.banks
-    writePages(rec, d, env, tel, sliceToday)
+    d.xfmrCount = #(rec.xfmrs or {})
+    writePages(rec, d, env, tel, sliceToday, simLoad and loss or 0)
     d.tiers = byTier
     d.lastHour = now
 
     local powered = holdPower(d, bank, tel)
     driveGenerator(gen, sq, powered, tel.soc or 0)
+    -- A system that reaches beyond its own circle keeps a snapshot of itself,
+    -- so its grid can go on switching on and off realistically while nobody
+    -- is near enough to keep this controller loaded (OG_Distrib.remote).
+    if not replay and OffGrid.Distrib then
+        OffGrid.Distrib.capture(rec, {
+            arrays = arrays, bank = bank, load = sys.load,
+            online = d.online and not d.trip, lvd = d.lvd == true, lvdAt = d.lvdAt,
+            eff = ctrl.eff, harvest = ctrl.harvest,
+            powered = d.powered, want = d.poweredWant, hold = d.poweredHold,
+        })
+    end
     -- What the system is actually SERVING, which is nothing while it is
     -- offline. The measured demand in the radius is kept separately
     -- (d.demand): an offline controller reading "Using 530 W" next to a
@@ -2098,6 +1985,13 @@ function S.updateController(rec, dt, hoursAgo, wet)
     -- LOW BATT, and STARTING UP printed a load nothing was getting.
     d.load = (try(gen, "isActivated") == true and not d.lvd) and (sys.load or 0) or 0
     local visualChanged = P.setState(gen, powered and "on" or "off")
+    -- Every transformer shows whether the grid is live, read off the engine
+    -- state like the load is: a burning square or a switch-off overrules
+    -- `powered` on the object itself.
+    local live = try(gen, "isActivated") == true
+    for i = 1, #(rec.xfmrs or {}) do
+        if P.setState(rec.xfmrs[i], live and "on" or "off") then visualChanged = true end
+    end
 
     rec.syncIn = (rec.syncIn or 0) - 1
     -- A shed changing hands is pushed at once, whichever way it changed: a
@@ -2110,6 +2004,7 @@ function S.updateController(rec, dt, hoursAgo, wet)
         sync(gen)
         for i = 1, #rec.arrays do sync(rec.arrays[i]) end
         for i = 1, #rec.banks do sync(rec.banks[i]) end
+        for i = 1, #(rec.xfmrs or {}) do sync(rec.xfmrs[i]) end
     end
 end
 
@@ -2173,6 +2068,10 @@ function S.tick()
             end
         end
     end
+    -- Once per tick, after every controller has been driven: what each
+    -- system adds goes into the registry, and the registry goes to clients
+    -- in one message however many systems changed.
+    if OffGrid.Distrib then OffGrid.Distrib.afterTick() end
 end
 
 --------------------------------------------------------- commands from a client
@@ -2227,6 +2126,19 @@ function COMMANDS.equalise(playerObj, args)
     local d = P.data(obj)
     d.equalise = args.on and true or false
     sync(obj)
+end
+
+-- Building wiring and the Building Picker (OG_Distrib).
+function COMMANDS.bwDefault(playerObj, args)
+    if OffGrid.Distrib then OffGrid.Distrib.cmdDefault(playerObj, args) end
+end
+
+function COMMANDS.bwClear(playerObj, args)
+    if OffGrid.Distrib then OffGrid.Distrib.cmdClear(playerObj, args) end
+end
+
+function COMMANDS.bwPick(playerObj, args)
+    if OffGrid.Distrib then OffGrid.Distrib.cmdPick(playerObj, args) end
 end
 
 --- Entry point for both paths. Returns true if the command was known.
@@ -2290,10 +2202,14 @@ end
 local function registerSprites()
     local PRIORITY = 6
     for row = 1, #P.ROWS do
-        for col = 0, P.COLS - 1 do
-            local name = P.TILESET .. "_" .. ((row - 1) * P.COLS + col)
-            MapObjects.OnLoadWithSprite(name, onLoadPart, PRIORITY)
-            MapObjects.OnNewWithSprite(name, onLoadPart, PRIORITY)
+        -- The solar lamps are standalone and OG_Lamps registers them; a second
+        -- callback at the same priority would replace its one.
+        if P.ROWS[row].kind ~= "lamp" then
+            for col = 0, P.COLS - 1 do
+                local name = P.TILESET .. "_" .. ((row - 1) * P.COLS + col)
+                MapObjects.OnLoadWithSprite(name, onLoadPart, PRIORITY)
+                MapObjects.OnNewWithSprite(name, onLoadPart, PRIORITY)
+            end
         end
     end
 end
@@ -2312,5 +2228,22 @@ Events.OnGameStart.Add(registerSprites)
 Events.OnServerStarted.Add(registerSprites)
 Events.EveryOneMinute.Add(S.tick)
 Events.OnClientCommand.Add(onClientCommand)
+
+--- What OG_Distrib shares with this file. Its sweep and its commands must read
+--  and bill a square exactly as this file does, so they use the same
+--  functions rather than copies of them. Handed out by a function rather than
+--  kept as a table on S: every table on S is state that S.resetState makes
+--  anew (tests/test_system.py holds it to that), and this is not state.
+local INTERNAL = {
+    key = key, objectOn = objectOn, chunkLoaded = chunkLoaded, sync = sync,
+    readSquare = readSquare, cacheTotals = cacheTotals, foldKinds = foldKinds,
+    eachPlayer = eachPlayer, powerRadius = powerRadius, powerLevels = powerLevels,
+    touchSystem = touchSystem, recordOf = recordOf, controllerAt = controllerAt,
+    NEAR = NEAR, SLICES = SLICES, REACH = REACH, POWER_HOLD = POWER_HOLD,
+}
+
+function S.internals()
+    return INTERNAL
+end
 
 return S

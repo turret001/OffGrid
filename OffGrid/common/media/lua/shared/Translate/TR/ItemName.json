@@ -17,8 +17,11 @@
     "Base.OffGridFlat": "Çatı Paneli",
     "Base.OffGridFlatMono": "Monokristal Çatı Paneli",
     "Base.OffGridFlatSalvage": "Hurda Çatı Paneli",
+    "Base.OffGridGardenLamp": "Güneş Enerjili Bahçe Lambası",
     "Base.OffGridManual": "Fotovoltaik Sistemler El Kitabı",
     "Base.OffGridManualAdv": "İleri Fotovoltaik ve MPPT",
+    "Base.OffGridStreetLamp": "Güneş Enerjili Sokak Lambası",
+    "Base.OffGridTransformer": "Trafo",
     "Base.OffGridWallBank": "Duvar Akü Kutusu",
     "Base.OffGridWallCrate": "Derme Çatma Duvar Aküsü",
     "Base.OffGridWallSealed": "Kapalı Duvar Dolabı"

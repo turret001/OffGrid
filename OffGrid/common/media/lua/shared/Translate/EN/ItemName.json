@@ -17,8 +17,11 @@
     "Base.OffGridFlat": "Roof Panel",
     "Base.OffGridFlatMono": "Monocrystalline Roof Panel",
     "Base.OffGridFlatSalvage": "Salvaged Roof Panel",
+    "Base.OffGridGardenLamp": "Solar Garden Lamp",
     "Base.OffGridManual": "Photovoltaic Systems Handbook",
     "Base.OffGridManualAdv": "Advanced Photovoltaics and MPPT",
+    "Base.OffGridStreetLamp": "Solar Street Lamp",
+    "Base.OffGridTransformer": "Transformer",
     "Base.OffGridWallBank": "Wall Battery Box",
     "Base.OffGridWallCrate": "Improvised Wall Cells",
     "Base.OffGridWallSealed": "Sealed Wall Cabinet"

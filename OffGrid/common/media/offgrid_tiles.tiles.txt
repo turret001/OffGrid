@@ -2,7 +2,7 @@ version = 1
 tileset
 {
     file = offgrid_01
-    size = 4,54
+    size = 4,60
     id = 1
     // offgrid_01_0
     tile
@@ -4987,5 +4987,605 @@ tileset
         solidtrans = 
         ItemHeight = 88
         GeneratorSound = OffGridQuiet
+    }
+    // offgrid_01_216
+    tile
+    {
+        xy = 0,54
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_217
+    tile
+    {
+        xy = 1,54
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_218
+    tile
+    {
+        xy = 2,54
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_219
+    tile
+    {
+        xy = 3,54
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_220
+    tile
+    {
+        xy = 0,55
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_221
+    tile
+    {
+        xy = 1,55
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_222
+    tile
+    {
+        xy = 2,55
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_223
+    tile
+    {
+        xy = 3,55
+        CustomName = Transformer
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridTransformer
+        PickUpWeight = 260
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        solidtrans = 
+        ItemHeight = 88
+    }
+    // offgrid_01_224
+    tile
+    {
+        xy = 0,56
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_225
+    tile
+    {
+        xy = 1,56
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_226
+    tile
+    {
+        xy = 2,56
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_227
+    tile
+    {
+        xy = 3,56
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_228
+    tile
+    {
+        xy = 0,57
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_229
+    tile
+    {
+        xy = 1,57
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_230
+    tile
+    {
+        xy = 2,57
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_231
+    tile
+    {
+        xy = 3,57
+        CustomName = Solar Garden Lamp
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridGardenLamp
+        PickUpWeight = 25
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 4
+    }
+    // offgrid_01_232
+    tile
+    {
+        xy = 0,58
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_233
+    tile
+    {
+        xy = 1,58
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_234
+    tile
+    {
+        xy = 2,58
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_235
+    tile
+    {
+        xy = 3,58
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_236
+    tile
+    {
+        xy = 0,59
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_237
+    tile
+    {
+        xy = 1,59
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_238
+    tile
+    {
+        xy = 2,59
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
+    }
+    // offgrid_01_239
+    tile
+    {
+        xy = 3,59
+        CustomName = Solar Street Lamp
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridStreetLamp
+        PickUpWeight = 180
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        lightswitch = 
+        lightR = 255
+        lightG = 232
+        lightB = 196
+        LightRadius = 12
     }
 }

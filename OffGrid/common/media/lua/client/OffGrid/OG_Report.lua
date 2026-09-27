@@ -60,7 +60,7 @@ R.DISPLAY = "Off-Grid: Solar Power"
 -- Kept in step with mod.info by tests/test_report.py, which fails the build if
 -- the two ever disagree. A report that names the wrong version is worse than
 -- one that names none, because it sends whoever reads it to the wrong source.
-R.VERSION = "2.11.1"
+R.VERSION = "2.12.0"
 
 -- How far around the player to look for the mod's own objects. Matched to the
 -- link radius rather than picked, so the report covers the same ground a
@@ -210,6 +210,12 @@ function R.partEntry(o, info, d, square, playerObj)
         put("equalise", d.equalise == true)
         put("links", linkCount(d.wire))
         put("wire", d.wire or "")
+        put("transformers", d.xfmrCount)
+        put("wiredBuildings", d.wiredCount)
+        put("buildings", d.bw)
+    elseif info.kind == "transformer" then
+        put("wiredTo", d.sys or "none")
+        put("buildings", d.bw)
     end
     local owner = d.owner
     if type(owner) == "string" and owner ~= "" then

@@ -40,6 +40,11 @@ P.SANDBOX_DEFAULTS = {
     SimulateLoad = true,
     DegradeBank = true,
     PickupLock = 3,
+    GridLinkRadius = 30,
+    TransformerLoss = 25,
+    RealisticMode = false,
+    RigChance = 15,
+    BarnStockChance = 2,
 }
 
 --- A sandbox option's value, or its declared default while SandboxVars does
@@ -49,6 +54,15 @@ function P.sandbox(name)
     local v = sv and sv[name]
     if v == nil then return P.SANDBOX_DEFAULTS[name] end
     return v
+end
+
+--- Realistic Mode, for the model: OG_Model asks this whenever it picks a
+--  panel spec, so the simulation, the forecast and every card agree, and a
+--  change of the option takes effect at once. OG_Model keeps this if it loads
+--  second, which is why it only sets its own default when there is none.
+OffGrid.Model = OffGrid.Model or {}
+OffGrid.Model.isRealistic = function()
+    return P.sandbox("RealisticMode") == true
 end
 
 --- ANOTHER mod's sandbox page, as the table SandboxVars holds, or nil. Read
@@ -81,20 +95,26 @@ P.FACING_INDEX = { E = 0, S = 1, W = 2, N = 3 }
 -- APPEND ONLY, and in the same order as og_taxonomy.py: a sprite index is
 -- row * COLS + facing, so a kind inserted anywhere but the end repoints
 -- every object already standing in a save.
-P.KINDS = { "array", "bank", "controller" }
+P.KINDS = { "array", "bank", "controller", "transformer", "lamp" }
 P.MOUNTS = {
     array = { "ground", "flat" },
     bank = { "ground", "wall" },
     controller = { "ground" },
+    transformer = { "ground" },
+    lamp = { "ground" },
 }
 P.TIERS = {
     array = { "makeshift", "standard", "premium" },
     bank = { "makeshift", "standard", "premium" },
     controller = { "basic", "mppt" },
+    transformer = { "standard" },
+    lamp = { "garden", "street" },
 }
 P.STATES = {
     array = { "clear", "snow", "cracked" },
     controller = { "off", "on" },
+    transformer = { "off", "on" },
+    lamp = { "off", "on" },
     -- bank has no flat list: see P.statesFor.
 }
 
@@ -193,6 +213,13 @@ P.ITEM = {
         ground = { basic = "Base.OffGridController",
                    mppt  = "Base.OffGridControllerMPPT" },
     },
+    transformer = {
+        ground = { standard = "Base.OffGridTransformer" },
+    },
+    lamp = {
+        ground = { garden = "Base.OffGridGardenLamp",
+                   street = "Base.OffGridStreetLamp" },
+    },
 }
 
 --- Every item record the mod declares, for the boot self-check.
@@ -245,8 +272,12 @@ function P.sprite(kind, mount, tier, state, facing)
 end
 
 --- Decompose one of the mod's sprite names, or nil if it is not ours.
+--  Anything but a string is not ours. Kahlua's string.match raises on a
+--  userdata, and a hook handed its arguments in a shifted order (42.21 put
+--  the placer first in placeMoveableInternal) must fall through to vanilla,
+--  not stop every piece of furniture with an error.
 function P.spriteInfo(name)
-    if not name then return nil end
+    if type(name) ~= "string" then return nil end
     local idx = string.match(name, "^" .. P.TILESET .. "_(%d+)$")
     if not idx then return nil end
     idx = tonumber(idx)
@@ -505,7 +536,7 @@ function P.data(obj)
 
     if info.kind == "array" then
         if d.panels == nil then
-            d.panels = OffGrid.Model.arraySpec(info.tier).panels
+            d.panels = OffGrid.Model.baseArraySpec(info.tier).panels
         end
         if d.soiling == nil then d.soiling = 0 end
         if d.snow == nil then d.snow = 0 end

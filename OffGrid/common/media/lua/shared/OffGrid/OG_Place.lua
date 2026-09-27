@@ -58,6 +58,7 @@ require "TimedActions/ISTakeGenerator"
 require "TimedActions/ISDropVehicleItemAction"
 require "TimedActions/ISDestroyStuffAction"
 require "OffGrid/OG_Parts"
+require "OffGrid/OG_Lamps"
 
 OffGrid = OffGrid or {}
 OffGrid.Place = OffGrid.Place or {}
@@ -320,6 +321,11 @@ function G.seed(obj, item, info)
             P.setState(obj, P.arrayState(d))
         end
     end
+    -- Vanilla gives the item the sprite the object wore, so a transformer
+    -- lifted while its grid was live came back lit with no system behind it.
+    -- It starts dark; its controller lights it once it is wired in. A
+    -- rotation keeps its system, and its lamp with it.
+    if info.kind == "transformer" and not d.sys then P.setState(obj, "off") end
     if OffGrid.System then OffGrid.System.register(obj) end
 end
 
@@ -571,19 +577,25 @@ end
 
 ----------------------------------------------------------------- the hooks
 
--- placeMoveableInternal is handed a square, an item and a sprite name, and no
--- character. The props object does not carry one either (grepped: vanilla
+-- Up to 42.20, placeMoveableInternal is handed a square, an item and a sprite
+-- name, and no character (42.21 puts the placer first; see the wrapper
+-- below). The props object does not carry one either (grepped: vanilla
 -- never sets self.character). The placer is only in scope one frame up, in
 -- placeMoveable. Kahlua is single threaded and placeMoveable calls the
 -- internal synchronously, so parking it for the duration of that one call is
 -- safe. pcall so an error inside vanilla cannot leave a stale name parked.
+--
+-- Every wrapper in this file hands the original any arguments past the ones
+-- it names (the `...`), so a parameter a game update appends reaches vanilla
+-- instead of being dropped here.
 local placing = nil
 local origPlaceOuter = ISMoveableSpriteProps.placeMoveable
-function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, forceAllow)
+function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, forceAllow, ...)
     local prev = placing
     placing = character
     -- vanilla returns false on refusal and nothing on success: one value
-    local ok, res = pcall(origPlaceOuter, self, character, square, origSpriteName, forceAllow)
+    local ok, res = pcall(origPlaceOuter, self, character, square, origSpriteName,
+                          forceAllow, ...)
     placing = prev
     if not ok then error(res, 0) end
     return res
@@ -626,7 +638,7 @@ end
 
 local origRotate = ISMoveableSpriteProps.rotateMoveable
 if origRotate then
-    function ISMoveableSpriteProps:rotateMoveable(character, square, origSpriteName)
+    function ISMoveableSpriteProps:rotateMoveable(character, square, origSpriteName, ...)
         local obj = nil
         if square and origSpriteName and P.spriteInfo(origSpriteName) then
             obj = partWearing(square, origSpriteName)
@@ -643,7 +655,7 @@ if origRotate then
         end
         local prev = rot
         rot = obj and { character = character, owner = G.ownerOf(obj) } or nil
-        local ok, res = pcall(origRotate, self, character, square, origSpriteName)
+        local ok, res = pcall(origRotate, self, character, square, origSpriteName, ...)
         rot = prev
         if not ok then error(res, 0) end
         return res
@@ -661,8 +673,8 @@ end
 -- (walkToAndEquip, below).
 local origCanRotate = ISMoveableSpriteProps.canRotateMoveable
 if origCanRotate then
-    function ISMoveableSpriteProps:canRotateMoveable(square, object, origProps)
-        local allowed = origCanRotate(self, square, object, origProps)
+    function ISMoveableSpriteProps:canRotateMoveable(square, object, origProps, ...)
+        local allowed = origCanRotate(self, square, object, origProps, ...)
         if not allowed then return allowed end
         if running(object) then return false end
         return allowed
@@ -677,8 +689,8 @@ end
 -- strings, so every language has them.
 local origFlagsPerTile = ISMoveableSpriteProps.getInfoPanelFlagsPerTile
 if origFlagsPerTile then
-    function ISMoveableSpriteProps:getInfoPanelFlagsPerTile(square, object, player, mode)
-        local res = origFlagsPerTile(self, square, object, player, mode)
+    function ISMoveableSpriteProps:getInfoPanelFlagsPerTile(square, object, player, mode, ...)
+        local res = origFlagsPerTile(self, square, object, player, mode, ...)
         if (mode == "rotate" or mode == "pickup") and InfoPanelFlags and running(object) then
             InfoPanelFlags.isOperational = true
             if mode == "rotate" then InfoPanelFlags.canRotate = false end
@@ -700,7 +712,7 @@ end
 -- wrapper above still refuses on the authority.
 local origWalkTo = ISMoveableSpriteProps.walkToAndEquip
 if origWalkTo then
-    function ISMoveableSpriteProps:walkToAndEquip(character, square, mode, spriteName)
+    function ISMoveableSpriteProps:walkToAndEquip(character, square, mode, spriteName, ...)
         if mode == "rotate" and character and square and self.spriteName
                 and P.spriteInfo(self.spriteName) then
             local obj = partWearing(square, self.spriteName)
@@ -709,13 +721,13 @@ if origWalkTo then
                 return false
             end
         end
-        return origWalkTo(self, character, square, mode, spriteName)
+        return origWalkTo(self, character, square, mode, spriteName, ...)
     end
 end
 
 local origFind = ISMoveableSpriteProps.findInInventory
 if origFind then
-    function ISMoveableSpriteProps:findInInventory(character, spriteName)
+    function ISMoveableSpriteProps:findInInventory(character, spriteName, ...)
         local it = rot and rot.item
         if it and rot.character == character then
             local inv = try(character, "getInventory")
@@ -724,35 +736,62 @@ if origFind then
                 return it
             end
         end
-        return origFind(self, character, spriteName)
+        return origFind(self, character, spriteName, ...)
     end
 end
 
 --- Who owns a part that has just landed. A rotation keeps whoever owned it,
 --  and never claims a legacy ownerless part for the rotator; every other
---  placement belongs to the placer.
-local function claim(target)
+--  placement belongs to the placer: the one the internal call is handed
+--  (42.21 on), else the one placeMoveable parked.
+local function claim(target, character)
     if not target then return end
     if rot then
         if rot.owner then P.data(target).owner = rot.owner end
         return
     end
-    G.stamp(target, placing)
+    G.stamp(target, character or placing)
+end
+
+--- The internal call's arguments, in either form: up to 42.20
+--  (square, item, spriteName), and from 42.21 on with the placer first,
+--  (character, square, item, spriteName). A player on 42.21 found 2.11.1
+--  reading the item as the sprite name; that raised inside the wrapper and
+--  stopped every piece of furniture, ours or not, from being put down. The
+--  second argument tells the forms apart: a square only in the new one, an
+--  item in the old. Returns character (nil before 42.21), square, item,
+--  sprite name.
+local function placeArgs(a1, a2, a3, a4)
+    if instanceof(a2, "IsoGridSquare") then return a1, a2, a3, a4 end
+    return nil, a1, a2, a3
 end
 
 local origPlace = ISMoveableSpriteProps.placeMoveableInternal
-function ISMoveableSpriteProps:placeMoveableInternal(square, item, spriteName)
+function ISMoveableSpriteProps:placeMoveableInternal(...)
+    local character, square, item, spriteName = placeArgs(...)
     local info = P.spriteInfo(spriteName)
-    local obj = origPlace(self, square, item, spriteName)
+    -- the original gets exactly what it was handed, in either form
+    local obj = origPlace(self, ...)
     if not info or not square then return obj end
     if info.kind == "controller" then
         local gen = G.makeController(square, item, info, obj)
-        claim(gen)
+        claim(gen, character)
         G.push(gen)
         return gen
     end
+    if info.kind == "lamp" then
+        -- A solar lamp is a vanilla light that vanilla has just built from the
+        -- tile's lightswitch property; OG_Lamps gives it its battery. It is
+        -- never part of a system, so G.seed is not for it.
+        P.scrubCarried(obj)
+        claim(obj, character)
+        -- a turn is a lift and a place: the lamp keeps its switch and its night
+        if OffGrid.Lamps then OffGrid.Lamps.placed(obj, item, rot ~= nil) end
+        G.push(obj)
+        return obj
+    end
     G.seed(obj, item, info)
-    claim(obj)
+    claim(obj, character)
     G.push(obj)
     return obj
 end
@@ -764,8 +803,8 @@ end
 -- a corner take a south rack and an east rack. Only ever adds a refusal.
 local origCanPlace = ISMoveableSpriteProps.canPlaceMoveableInternal
 if origCanPlace then
-    function ISMoveableSpriteProps:canPlaceMoveableInternal(character, square, item, forceTypeObject)
-        local allowed = origCanPlace(self, character, square, item, forceTypeObject)
+    function ISMoveableSpriteProps:canPlaceMoveableInternal(character, square, item, forceTypeObject, ...)
+        local allowed = origCanPlace(self, character, square, item, forceTypeObject, ...)
         if not allowed then return allowed end
         local info = self.spriteName and P.spriteInfo(self.spriteName)
         if not info or not square or not square.getObjects then return allowed end
@@ -778,10 +817,10 @@ if origCanPlace then
 end
 
 local origCanPick = ISMoveableSpriteProps.canPickUpMoveableInternal
-function ISMoveableSpriteProps:canPickUpMoveableInternal(character, square, object, isMulti)
+function ISMoveableSpriteProps:canPickUpMoveableInternal(character, square, object, isMulti, ...)
     -- Ask the base first and never overturn a refusal. Whatever else is
     -- installed still gets to say no; this only adds a reason to.
-    local allowed = origCanPick(self, character, square, object, isMulti)
+    local allowed = origCanPick(self, character, square, object, isMulti, ...)
     if not allowed then return false end
     return G.mayTake(character, square, object)
 end
@@ -797,7 +836,7 @@ end
 -- object is still on the square. Every gate after this runs unchanged.
 local origPickOuter = ISMoveableSpriteProps.pickUpMoveable
 if origPickOuter then
-    function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, forceAllow)
+    function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, forceAllow, ...)
         local o = self.object
         if o and square and self.spriteName and P.spriteInfo(self.spriteName)
                 and P.partOf(o) then
@@ -811,7 +850,7 @@ if origPickOuter then
                 end
             end
         end
-        return origPickOuter(self, character, square, createItem, forceAllow)
+        return origPickOuter(self, character, square, createItem, forceAllow, ...)
     end
 end
 
@@ -831,7 +870,7 @@ end
 local origPick = ISMoveableSpriteProps.pickUpMoveableInternal
 function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
                                                       sprInstance, spriteName,
-                                                      createItem, rotating)
+                                                      createItem, rotating, ...)
     local info = object and P.describe(object)
     if info then
         G.stow(object, square, rotating)
@@ -841,7 +880,8 @@ function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
         -- the same square inside that window was still reachable from the
         -- old controller while reading loose, so it could be wired into a
         -- second system and be counted by both, for good.
-        if not rotating and info.kind ~= "controller" and not isClient()
+        if not rotating and info.kind ~= "controller" and info.kind ~= "lamp"
+                and not isClient()
                 and OffGrid.System and OffGrid.System.unplug and square
                 and not kindRemains(square, object, info.kind) then
             OffGrid.System.unplug(M.nodeKey(square:getX(), square:getY(),
@@ -854,7 +894,7 @@ function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
     local wasKept = removal.kept[object]
     if object then removal.kept[object] = true end
     local ok, item = pcall(origPick, self, character, square, object, sprInstance,
-                           spriteName, createItem, rotating)
+                           spriteName, createItem, rotating, ...)
     if object then removal.kept[object] = wasKept end
     if not ok then error(item, 0) end
     -- A controller lifted for good hands over what it held now, once the
@@ -868,6 +908,21 @@ function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
     end
     if rot and rotating and item and info and rot.character == character then
         rot.item = item
+    end
+    -- A lamp's charge is the engine's, drained every minute it is lit; take
+    -- the figure now, not the one its last tick wrote, before it is copied.
+    -- The bulb and its colour too (vanilla carries neither for an item with
+    -- a CustomItem; OG_Lamps.placed puts them back).
+    if info and info.kind == "lamp" and OffGrid.Lamps and object then
+        local d = P.data(object)
+        d.charge = OffGrid.Lamps.charge(object)
+        d.nobulb = (not object:hasLightBulb()) or nil
+        d.bulb = try(object, "getBulbItem")
+        d.lightR = try(object, "getPrimaryR")
+        d.lightG = try(object, "getPrimaryG")
+        d.lightB = try(object, "getPrimaryB")
+        -- whether it was lit, for a turn (OG_Lamps.placed)
+        d.lit = (try(object, "isActivated") == true) or nil
     end
     -- carry the remaining state onto the item so placing it again restores it
     if item and object and item.getModData then
@@ -893,6 +948,11 @@ function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
             if not rotating then
                 copy.sys = nil
                 copy.wire = nil
+                -- Nor do the buildings it wired (bw, and their footprints in
+                -- bwr): put down elsewhere it would claim a house it no
+                -- longer reaches, and the registry would light it.
+                copy.bw = nil
+                copy.bwr = nil
             end
             -- The loop above drops every table, which is right for `wire` and
             -- wrong for the cells. It has always been wrong for them: the old
@@ -988,13 +1048,13 @@ end
 -- vanilla builds it, so no second object, removal or send is involved.
 if ISTransferAction and ISTransferAction.transferItem then
     local origTransfer = ISTransferAction.transferItem
-    function ISTransferAction:transferItem(character, item, srcContainer, destContainer, dropSquare)
+    function ISTransferAction:transferItem(character, item, srcContainer, destContainer, dropSquare, ...)
         if dropSquare and destContainer and not isClient()
                 and try(destContainer, "getType") == "floor" and isControllerItem(item) then
             local ok, sq = pcall(G.landingSquare, character, dropSquare, destContainer, item)
             if ok and sq then dropSquare = sq end
         end
-        local res = origTransfer(self, character, item, srcContainer, destContainer, dropSquare)
+        local res = origTransfer(self, character, item, srcContainer, destContainer, dropSquare, ...)
         if dropSquare and destContainer and not isClient()
                 and try(destContainer, "getType") == "floor" then
             local ok, err = pcall(adoptDropOn, dropSquare, item, character)
@@ -1006,7 +1066,7 @@ end
 
 if ISDropWorldItemAction and ISDropWorldItemAction.complete then
     local origDropComplete = ISDropWorldItemAction.complete
-    function ISDropWorldItemAction:complete()
+    function ISDropWorldItemAction:complete(...)
         -- The placement cursor can target the dropper's own square
         -- (IsoGridSquare.isAdjacentTo counts it), so the same rule applies.
         if self.sq and not isClient() and isControllerItem(self.item) then
@@ -1014,7 +1074,7 @@ if ISDropWorldItemAction and ISDropWorldItemAction.complete then
             if ok and landing then self.sq = landing end
         end
         local item, sq, who = self.item, self.sq, self.character
-        local res = origDropComplete(self)
+        local res = origDropComplete(self, ...)
         if not isClient() then
             local ok, err = pcall(adoptDropOn, sq, item, who)
             if not ok then print("OffGrid: adopting a dropped controller failed, " .. tostring(err)) end
@@ -1025,9 +1085,9 @@ end
 
 if ISDropVehicleItemAction and ISDropVehicleItemAction.complete then
     local origVehDrop = ISDropVehicleItemAction.complete
-    function ISDropVehicleItemAction:complete()
+    function ISDropVehicleItemAction:complete(...)
         local item, sq, who = self.item, self.dropSquare, self.character
-        local res = origVehDrop(self)
+        local res = origVehDrop(self, ...)
         if not isClient() then
             local ok, err = pcall(adoptDropOn, sq, item, who)
             if not ok then print("OffGrid: adopting a dropped controller failed, " .. tostring(err)) end
@@ -1076,7 +1136,7 @@ end
 -- which is where the removal happens on the authority.
 if ISDestroyStuffAction and ISDestroyStuffAction.complete then
     local origDestroy = ISDestroyStuffAction.complete
-    function ISDestroyStuffAction:complete()
+    function ISDestroyStuffAction:complete(...)
         local item = self.item
         local marked = false
         if item and not isClient() and P.partOf(item) == "bank"
@@ -1084,7 +1144,7 @@ if ISDestroyStuffAction and ISDestroyStuffAction.complete then
             marked = not removal.refused[item]
             removal.refused[item] = true
         end
-        local ok, res = pcall(origDestroy, self)
+        local ok, res = pcall(origDestroy, self, ...)
         if marked then removal.refused[item] = nil end
         if not ok then error(res, 0) end
         return res
@@ -1174,20 +1234,20 @@ end
 if ISTakeGenerator then
     local origTakeValid = ISTakeGenerator.isValid
     if origTakeValid then
-        function ISTakeGenerator:isValid()
+        function ISTakeGenerator:isValid(...)
             if self.generator and P.partOf(self.generator) == "controller" then
                 return false
             end
-            return origTakeValid(self)
+            return origTakeValid(self, ...)
         end
     end
     local origTakeComplete = ISTakeGenerator.complete
     if origTakeComplete then
-        function ISTakeGenerator:complete()
+        function ISTakeGenerator:complete(...)
             if self.generator and P.partOf(self.generator) == "controller" then
                 return true
             end
-            return origTakeComplete(self)
+            return origTakeComplete(self, ...)
         end
     end
 end

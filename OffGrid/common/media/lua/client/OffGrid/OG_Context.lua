@@ -12,6 +12,8 @@ require "OffGrid/OG_Parts"
 require "OffGrid/OG_Actions"
 require "OffGrid/OG_Almanac"
 require "OffGrid/OG_Coverage"
+require "OffGrid/OG_Buildings"
+require "OffGrid/OG_Lamps"
 -- OG_Info requires this file back, so it cannot be required here.
 -- It registers itself on OffGrid.Info and is reached through that. The
 -- forecast window is reached the same way: OG_Forecast loads after this file
@@ -22,6 +24,116 @@ OffGrid.Context = OffGrid.Context or {}
 local C = OffGrid.Context
 local P = OffGrid.Parts
 local M = OffGrid.Model
+
+--- How many buildings a part wires. OG_Buildings is looked up when asked, not
+--  held from file load, so a harness or a load order that brings this file in
+--  without it reads "none" instead of failing the whole menu.
+local function wiredCount(d)
+    local Bd = OffGrid.Buildings
+    return (Bd and Bd.decodeTargets) and #Bd.decodeTargets(d.bw) or 0
+end
+
+------------------------------------------------------------------ row icons
+
+--- The Off-Grid menu's row icons (Can, 2026-09-26: line pictures coloured by
+--  group). Tabler Icons (MIT, v3.48.0; the licence ships beside them), drawn
+--  white by tools/build_menu_icons.py at these sizes. Each row tints its icon
+--  with its group's colour: ISContextMenu.renderOptionTextureOrColor draws
+--  the texture multiplied by option.color and uses the colour for nothing
+--  else. A row the player cannot use yet shows its icon grey.
+C.ICON_DIR = "media/ui/OffGrid/Menu/"
+C.ICON_SIZES = { 16, 20, 24, 32, 48 }
+C.ICON_GROUP = {
+    info  = { r = 133 / 255, g = 183 / 255, b = 235 / 255 },   -- Info, System monitor
+    sky   = { r = 239 / 255, g = 159 / 255, b = 39 / 255 },    -- Off-Grid, Almanac, the sky
+    reach = { r = 93 / 255, g = 202 / 255, b = 165 / 255 },    -- coverage and buildings
+    power = { r = 151 / 255, g = 196 / 255, b = 89 / 255 },    -- switch on, batteries
+    off   = { r = 226 / 255, g = 75 / 255, b = 74 / 255 },     -- switch off
+    cable = { r = 240 / 255, g = 153 / 255, b = 123 / 255 },   -- cables
+    care  = { r = 175 / 255, g = 169 / 255, b = 236 / 255 },   -- snow, cleaning, repair
+    take  = { r = 180 / 255, g = 178 / 255, b = 169 / 255 },   -- Take down
+}
+C.ICON_DIM = { r = 111 / 255, g = 110 / 255, b = 105 / 255 }
+
+-- Every row's icon and group, in one place: { Tabler icon, group }.
+C.ROW_ICONS = {
+    offgrid         = { "solar-panel", "sky" },
+    info            = { "info-circle", "info" },
+    monitor         = { "device-desktop-analytics", "info" },
+    almanac         = { "book-2", "sky" },
+    readSky         = { "cloud", "sky" },
+    coverageShow    = { "radar-2", "reach" },
+    coverageHide    = { "radar-off", "reach" },
+    wireBuilding    = { "home-bolt", "reach" },
+    chooseBuildings = { "building-community", "reach" },
+    unwireBuildings = { "home-off", "reach" },
+    switchOn        = { "power", "power" },
+    reset           = { "refresh", "power" },
+    cells           = { "battery-automotive", "power" },
+    equalise        = { "battery-charging-2", "power" },
+    equaliseStop    = { "battery-off", "power" },
+    switchOff       = { "power", "off" },
+    wireFrom        = { "plug", "cable" },
+    wireTo          = { "plug-connected", "cable" },
+    wireCancel      = { "plug-x", "cable" },
+    wireCut         = { "scissors", "cable" },
+    clearSnow       = { "snowflake", "care" },
+    repair          = { "tool", "care" },
+    clean           = { "droplet", "care" },
+    takeDown        = { "hand-grab", "take" },
+}
+
+--- The drawn size for a menu: the smallest at least as tall as its icon
+--  slot, which is the menu's font height (ISContextMenu:render: iconSize =
+--  itemHgt - 12, and itemHgt = fontHgt + 12), so the game scales an icon down,
+--  and only a little. Past the largest, the largest.
+function C.iconSize(menu)
+    local want = (menu and type(menu.fontHgt) == "number") and menu.fontHgt or 18
+    for i = 1, #C.ICON_SIZES do
+        if C.ICON_SIZES[i] >= want then return C.ICON_SIZES[i] end
+    end
+    return C.ICON_SIZES[#C.ICON_SIZES]
+end
+
+local iconTextures = {}
+
+local function iconTexture(name, size)
+    local path = C.ICON_DIR .. size .. "/" .. name .. ".png"
+    local t = iconTextures[path]
+    if t == nil then
+        t = getTexture(path) or false
+        iconTextures[path] = t
+    end
+    return t or nil
+end
+
+--- Give a menu row its icon: `row` a key of C.ROW_ICONS. Returns the row,
+--  so it can wrap addOption. A picture the game cannot find leaves the row as
+--  it was.
+function C.icon(option, menu, row)
+    local spec = C.ROW_ICONS[row]
+    if type(option) ~= "table" or not spec then return option end
+    local tex = iconTexture(spec[1], C.iconSize(menu))
+    if not tex then return option end
+    option.iconTexture = tex
+    local c = C.ICON_GROUP[spec[2]]
+    option.color = c and { r = c.r, g = c.g, b = c.b } or nil
+    return option
+end
+
+--- Grey the icon of every row in `menu` the player cannot use yet. Run once
+--  the menu is built: several rows are marked notAvailable after they are
+--  added.
+function C.dimUnavailable(menu)
+    local opts = menu and menu.options
+    if type(opts) ~= "table" then return end
+    local d = C.ICON_DIM
+    for _, o in ipairs(opts) do
+        if o.notAvailable and o.iconTexture then
+            o.color = { r = d.r, g = d.g, b = d.b }
+        end
+    end
+end
 
 --- Ask the authority to do something. On a multiplayer client that is a
 --  packet; in single player the simulation is loaded in this process, so it is
@@ -176,6 +288,16 @@ local function statusText(obj, part)
             return getText("IGUI_OffGrid_NotWired") .. "   " .. line
         end
         return line
+    elseif part == "transformer" then
+        -- Unwired first, as for every part: a transformer lights nothing
+        -- until a power line joins it to a controller.
+        if loose then return getText("IGUI_OffGrid_NotWired") end
+        local info = P.describe(obj)
+        local bits = { getText((info and info.state == "on") and "IGUI_OffGrid_GridOn"
+                                                             or "IGUI_OffGrid_GridOff") }
+        local n = wiredCount(d)
+        if n > 0 then bits[#bits + 1] = P.txt("IGUI_OffGrid_BuildingsWired", n) end
+        return table.concat(bits, "   ")
     end
     return nil
 end
@@ -184,7 +306,7 @@ end
 --
 --  The Java menu keys purely on `instanceof IsoGenerator`, so the controller
 --  inherits Add Fuel (which has no skill gate and writes the state-of-charge
---  gauge), Connect (which arms every LGEE path), Turn On/Off, Fix, Take and a
+--  gauge), Connect, Turn On/Off, Fix, Take and a
 --  petrol readout. None of it belongs on a solar controller and Off-Grid's own
 --  submenu already covers everything that does.
 --
@@ -205,10 +327,43 @@ local function stripGeneratorMenu(context, test)
     end
 end
 
+--- Strip vanilla's Remove Battery when the light it was built for is one of
+--  the solar lamps, whose battery is built in. Keyed on the light switch the
+--  menu was actually BUILT for, as stripGeneratorMenu is on the generator:
+--  vanilla fetches every object on the clicked square, so a right-click on
+--  the ground beside the stake or pole, and the joypad, built the row while
+--  `worldobjects` held no lamp (review, 2026-09-26). OG_Lamps refuses the
+--  action itself as well.
+local function stripLampBattery(context, test)
+    if test or not context or not context.removeOptionByName then return end
+    local fv = ISWorldObjectContextMenu and ISWorldObjectContextMenu.fetchVars
+    local l = fv and fv.lightSwitch
+    if l and P.partOf(l) == "lamp" then
+        context:removeOptionByName(getText("ContextMenu_Remove_Battery"))
+    end
+end
+
+--- A solar lamp's menu. The switch, the bulb and the light are vanilla's
+--  own rows (Turn On / Turn Off, Remove Light Bulb): the lamp IS a vanilla
+--  light. This adds one line saying how charged it is and what it will do.
+--  Vanilla's Remove Battery goes in stripLampBattery, keyed on the light the
+--  rows were built for: removed here by its label, it took the row of another
+--  battery lamp vanilla had fetched instead (review, 2026-09-26).
+function C.lampMenu(context, worldobjects, target)
+    local sub = C.icon(context:addOption(getText("ContextMenu_OffGrid"), worldobjects, nil),
+                       context, "offgrid")
+    local menu = ISContextMenu:getNew(context)
+    context:addSubMenu(sub, menu)
+    local line = menu:addOption(OffGrid.Lamps.status(target), nil, nil)
+    line.notAvailable = true
+    return true
+end
+
 function C.onFill(playerNum, context, worldobjects, test)
     local playerObj = getSpecificPlayer(playerNum)
     if not playerObj then return end
     stripGeneratorMenu(context, test)
+    stripLampBattery(context, test)
 
     local target, part = nil, nil
     for _, o in ipairs(worldobjects) do
@@ -218,7 +373,10 @@ function C.onFill(playerNum, context, worldobjects, test)
     if not target then return end
     if test then return true end
 
-    local sub = context:addOption(getText("ContextMenu_OffGrid"), worldobjects, nil)
+    if part == "lamp" then return C.lampMenu(context, worldobjects, target) end
+
+    local sub = C.icon(context:addOption(getText("ContextMenu_OffGrid"), worldobjects, nil),
+                       context, "offgrid")
     local menu = ISContextMenu:getNew(context)
     context:addSubMenu(sub, menu)
 
@@ -228,8 +386,8 @@ function C.onFill(playerNum, context, worldobjects, test)
         line.notAvailable = true
     end
 
-    menu:addOption(getText("ContextMenu_OffGrid_Info"), worldobjects,
-                   C.onInfo, target, playerObj)
+    C.icon(menu:addOption(getText("ContextMenu_OffGrid_Info"), worldobjects,
+                          C.onInfo, target, playerObj), menu, "info")
 
     -- The almanac, on every part, once the sky can be read. The sidebar
     -- button is one route to the same window and can be switched off in the
@@ -237,13 +395,13 @@ function C.onFill(playerNum, context, worldobjects, test)
     -- generator's own Info entry, which is what was asked for.
     if OffGrid.Almanac and OffGrid.Almanac.knows(playerObj)
             and OffGrid.Forecast and OffGrid.Forecast.open then
-        menu:addOption(getText("ContextMenu_OffGrid_Almanac"), worldobjects,
-                       C.onAlmanac, playerObj)
+        C.icon(menu:addOption(getText("ContextMenu_OffGrid_Almanac"), worldobjects,
+                              C.onAlmanac, playerObj), menu, "almanac")
         -- Taking a reading without the window: the window's button is mouse
         -- only, so this row is how a controller player reads the sky at all.
         local why = OffGrid.Almanac.blocked(playerObj)
-        local read = menu:addOption(getText("IGUI_OffGrid_ReadSky"), worldobjects,
-                                    C.onReadSky, playerObj)
+        local read = C.icon(menu:addOption(getText("IGUI_OffGrid_ReadSky"), worldobjects,
+                                           C.onReadSky, playerObj), menu, "readSky")
         if why then
             read.notAvailable = true
             local tip = ISWorldObjectContextMenu.addToolTip()
@@ -253,27 +411,21 @@ function C.onFill(playerNum, context, worldobjects, test)
     end
 
     if part == "controller" then
-        menu:addOption(getText("ContextMenu_OffGrid_Monitor"), worldobjects,
-                       C.onMonitor, target, playerObj)
-        local coverage = OffGrid.Coverage
-        if coverage then
-            local key = coverage.isSelected(target, playerObj)
-                and "ContextMenu_OffGrid_HideCoverage" or "ContextMenu_OffGrid_ShowCoverage"
-            local option = menu:addOption(getText(key), target, coverage.toggle, playerObj)
-            local tip = ISWorldObjectContextMenu.addToolTip()
-            tip.description = getText("Tooltip_OffGrid_Coverage")
-            option.toolTip = tip
-        end
+        C.icon(menu:addOption(getText("ContextMenu_OffGrid_Monitor"), worldobjects,
+                              C.onMonitor, target, playerObj),
+               menu, "monitor")
+        C.coverageMenu(menu, target, playerObj)
+        C.buildingMenu(menu, worldobjects, target, playerObj, part)
         local d = P.data(target)
         if d.trip then
-            menu:addOption(getText("ContextMenu_OffGrid_Reset"), worldobjects,
-                           C.onBreaker, target, playerObj, true)
+            C.icon(menu:addOption(getText("ContextMenu_OffGrid_Reset"), worldobjects,
+                                  C.onBreaker, target, playerObj, true), menu, "reset")
         elseif d.online then
-            menu:addOption(getText("ContextMenu_OffGrid_SwitchOff"), worldobjects,
-                           C.onBreaker, target, playerObj, false)
+            C.icon(menu:addOption(getText("ContextMenu_OffGrid_SwitchOff"), worldobjects,
+                                  C.onBreaker, target, playerObj, false), menu, "switchOff")
         else
-            menu:addOption(getText("ContextMenu_OffGrid_SwitchOn"), worldobjects,
-                           C.onBreaker, target, playerObj, true)
+            C.icon(menu:addOption(getText("ContextMenu_OffGrid_SwitchOn"), worldobjects,
+                                  C.onBreaker, target, playerObj, true), menu, "switchOn")
         end
 
         -- Equalisation. Only offered when there is something it can actually
@@ -284,8 +436,9 @@ function C.onFill(playerNum, context, worldobjects, test)
         if d.canEqualise then
             local key = d.equalise and "ContextMenu_OffGrid_EqualiseStop"
                                     or "ContextMenu_OffGrid_Equalise"
-            local opt = menu:addOption(getText(key), worldobjects, C.onEqualise,
-                                       target, playerObj, not d.equalise)
+            local opt = C.icon(menu:addOption(getText(key), worldobjects, C.onEqualise,
+                                              target, playerObj, not d.equalise),
+                               menu, d.equalise and "equaliseStop" or "equalise")
             -- The server refuses this command beyond arm's reach and says
             -- nothing; a row that works at 2 tiles and silently does not at 4
             -- reads as a broken switch. Grey it out where it will not work,
@@ -297,26 +450,34 @@ function C.onFill(playerNum, context, worldobjects, test)
             end
         end
 
+    elseif part == "transformer" then
+        -- A transformer in a system shows the system's coverage and wires
+        -- buildings of its own; a loose one only offers its cable rows.
+        if liveSys(P.data(target)) then
+            C.coverageMenu(menu, target, playerObj)
+            C.buildingMenu(menu, worldobjects, target, playerObj, part)
+        end
+
     elseif part == "bank" then
         -- One row. The install and remove rows it replaces were two more code
         -- paths into the same mutation, and the panel does both with the cells
         -- visible instead of guessing which battery the player meant.
-        menu:addOption(getText("ContextMenu_OffGrid_Cells"), worldobjects,
-                       C.onCells, target, playerObj)
+        C.icon(menu:addOption(getText("ContextMenu_OffGrid_Cells"), worldobjects,
+                              C.onCells, target, playerObj), menu, "cells")
 
     elseif part == "array" then
         local d = P.data(target)
         if (d.snow or 0) > 0.01 then
-            menu:addOption(getText("ContextMenu_OffGrid_ClearSnow"), worldobjects,
-                           C.onClear, target, playerObj, "snow")
+            C.icon(menu:addOption(getText("ContextMenu_OffGrid_ClearSnow"), worldobjects,
+                                  C.onClear, target, playerObj, "snow"), menu, "clearSnow")
         end
         -- Repair. Condition only ever fell before this: a frame left out in a
         -- wet autumn walked down to a quarter of its output with no way back.
         if (d.condition or 100) < 100 then
             local scrap, screws = findRepairParts(playerObj)
-            local opt = menu:addOption(getText("ContextMenu_OffGrid_Repair"),
-                                       worldobjects, C.onRepair, target,
-                                       playerObj, scrap, screws)
+            local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_Repair"),
+                                              worldobjects, C.onRepair, target,
+                                              playerObj, scrap, screws), menu, "repair")
             if not (scrap and screws) then
                 opt.notAvailable = true
                 opt.toolTip = C.tip(getText("Tooltip_OffGrid_NeedParts"))
@@ -327,9 +488,9 @@ function C.onFill(playerNum, context, worldobjects, test)
         end
 
         local rag, water = findRagAndWater(playerObj)
-        local opt = menu:addOption(getText("ContextMenu_OffGrid_Clean"),
-                                   worldobjects, C.onClear, target, playerObj,
-                                   "dirt", rag, water)
+        local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_Clean"),
+                                          worldobjects, C.onClear, target, playerObj,
+                                          "dirt", rag, water), menu, "clean")
         if (d.soiling or 0) <= 0.01 then
             opt.notAvailable = true
             opt.toolTip = C.tip(getText("Tooltip_OffGrid_AlreadyClean"))
@@ -342,6 +503,115 @@ function C.onFill(playerNum, context, worldobjects, test)
     -- Wiring is offered on every kind, because every kind is either a loose
     -- end, something to land a cable on, or both.
     C.wireMenu(menu, worldobjects, target, playerObj, P.describe(target))
+
+    -- Last row, because it is the one that ends the conversation.
+    C.takeDownMenu(menu, worldobjects, target, playerObj)
+
+    C.dimUnavailable(menu)
+end
+
+--- Take the part down, without having to see it.
+--
+--  A Workshop report, 2026-09-21: an enclosed battery cabinet put in a bad
+--  spot "cannot be picked up removed or destroyed with a sledge hammer". That
+--  is accurate, it is only that one part, and the mod's own permission gate is
+--  not what blocks it.
+--
+--  The sealed cabinet is the ONE thing this mod places that carries `solid`
+--  rather than `solidtrans` -- deliberately, as the price of the best storage
+--  in the game (tools/build_tiles.py). A solid object blocks line of sight to
+--  its own square, and both vanilla ways of removing a placed object are
+--  gated on seeing the square, independently and for different reasons:
+--
+--    * ISMoveableCursor:shouldAddObject returns false for anything that is
+--      not a wall or a door on a square failing isCouldSee, so the cabinet
+--      never enters the pick-up list and the cursor finds nothing there.
+--    * ISDestroyCursor:isValid refuses on the same test, with an exception
+--      only for walls and windows reached from the opposite square.
+--
+--  So a lone cabinet is unreachable from every angle, and the harder the
+--  player tries the more it looks like a bug in this mod. The context menu is
+--  built from the objects the click hit and asks nothing about vision, which
+--  is why this row works where those two cannot.
+--
+--  It does not reimplement removal. It asks G.mayTake -- the same owner, tool
+--  and switch-off rule the cursor asks -- and then queues the engine's own
+--  pick-up action, so emptying a rack's batteries onto the floor, unplugging
+--  the node, retiring a controller's system and building the item all happen
+--  exactly as they do from the cursor, through the hooks already in OG_Place.
+function C.takeDownMenu(menu, worldobjects, target, playerObj)
+    if not ISMoveableSpriteProps or not ISMoveableSpriteProps.fromObject then
+        return
+    end
+    local sq = target and target:getSquare()
+    if not sq or not playerObj then return end
+
+    local props = ISMoveableSpriteProps.fromObject(target)
+    if not props or not props.isMoveable then return end
+
+    -- QUIET. The menu is rebuilt as the cursor moves over it, and a refusal
+    -- halo per frame is how the pick-up lock earned its rate limit in the
+    -- first place. A part this character may not lift simply has no row, the
+    -- same as it has no cursor.
+    if OffGrid.Place and OffGrid.Place.mayTake
+            and not OffGrid.Place.mayTake(playerObj, sq, target, true) then
+        return
+    end
+
+    local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_TakeDown"),
+                                      worldobjects, C.onTakeDown, target, playerObj),
+                       menu, "takeDown")
+
+    -- The one refusal worth showing rather than hiding: a full bag. Hiding it
+    -- would read as the same silence the cabinet already gives.
+    local inv = playerObj.getInventory and playerObj:getInventory()
+    if inv and inv.hasRoomFor
+            and not inv:hasRoomFor(playerObj, props.weight or 0) then
+        opt.notAvailable = true
+        opt.toolTip = C.tip(getText("Tooltip_OffGrid_TooHeavy"))
+    end
+end
+
+function C.onTakeDown(worldobjects, object, playerObj)
+    if not object or not playerObj then return end
+    local sq = object:getSquare()
+    if not sq then return end
+    -- The menu can outlive what it was built on: another player, a fire or a
+    -- zombie can take the part off the square while it is open.
+    local objs = sq:getObjects()
+    if not objs or not objs:contains(object) then return end
+
+    local props = ISMoveableSpriteProps.fromObject(object)
+    if not props or not props.isMoveable then return end
+
+    -- NOT quiet, unlike the menu: this is the moment the player asked, so a
+    -- refusal has to explain itself. canPickUpMoveable runs through
+    -- canPickUpMoveableInternal, which OG_Place hooks, so the owner lock, the
+    -- screwdriver lock and the running-controller rule all answer here.
+    if not props:canPickUpMoveable(playerObj, sq, object) then return end
+
+    -- walkToAndEquip is the preamble both vanilla routes use
+    -- (ISMoveableCursor:create and ISDisassembleMenu.disassemble). It walks to
+    -- a square BESIDE the object, which matters more here than anywhere else:
+    -- a sealed cabinet's own square is solid and a ground array's is
+    -- solidtrans, so neither can ever be stood on, and a walk aimed at the
+    -- object's own tile would fail and take the queued action with it.
+    if not (ISMoveableDefinitions and ISMoveableDefinitions.cheat)
+            and not props:walkToAndEquip(playerObj, sq, "pickup",
+                                         props.spriteName) then
+        return
+    end
+
+    -- The facing the action puts back on the item, read from the sprite the
+    -- part is actually wearing rather than from its ModData: a panel under
+    -- snow and the same panel swept are different sprites of the same facing.
+    local facing = props.sprite
+                   and props:getFaceDirectionFromSpriteName(props.sprite:getName())
+    local found = props:findOnSquare(sq, props.spriteName)
+    ISTimedActionQueue.add(ISMoveablesAction:new(playerObj, sq, "pickup",
+                                                 props.spriteName,
+                                                 found or object, facing,
+                                                 nil, nil))
 end
 
 function C.tip(text)
@@ -507,11 +777,12 @@ function C.wireMenu(menu, worldobjects, target, playerObj, info)
     -- Step one: choose this part as the loose end.
     if info.kind ~= "controller" and not sysKey then
         if pending and pending.obj == target then
-            menu:addOption(getText("ContextMenu_OffGrid_WireCancel"),
-                           worldobjects, C.onClearSource)
+            C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireCancel"),
+                                  worldobjects, C.onClearSource), menu, "wireCancel")
         else
-            menu:addOption(getText("ContextMenu_OffGrid_WireFrom"),
-                           worldobjects, C.onPickSource, target, playerObj)
+            C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireFrom"),
+                                  worldobjects, C.onPickSource, target, playerObj),
+                   menu, "wireFrom")
         end
     end
 
@@ -522,12 +793,15 @@ function C.wireMenu(menu, worldobjects, target, playerObj, info)
         local far = false
         if sq and ps then
             local dx, dy = sq:getX() - ps:getX(), sq:getY() - ps:getY()
-            local reach = P.sandbox("LinkRadius")
+            -- The same rule the server applies (S.connect): a power line to
+            -- or from a transformer runs further than a panel or battery lead.
+            local reach = M.cableReach(pending.kind, info.kind, P.sandbox("LinkRadius"),
+                                       P.sandbox("GridLinkRadius"))
             far = (dx * dx + dy * dy) > reach * reach
         end
-        local opt = menu:addOption(
+        local opt = C.icon(menu:addOption(
             P.txt("ContextMenu_OffGrid_WireTo", pending.name or "?"),
-            worldobjects, C.onRunCable, target, playerObj)
+            worldobjects, C.onRunCable, target, playerObj), menu, "wireTo")
         if far then
             opt.notAvailable = true
             local tip = ISWorldObjectContextMenu.addToolTip()
@@ -542,7 +816,8 @@ function C.wireMenu(menu, worldobjects, target, playerObj, info)
     -- "Solar Array" and nothing else.
     local links = C.connectionsOf(target, info)
     if #links > 0 then
-        local sub = menu:addOption(getText("ContextMenu_OffGrid_WireCut"))
+        local sub = C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireCut")),
+                           menu, "wireCut")
         local ctx = ISContextMenu:getNew(menu)
         menu:addSubMenu(sub, ctx)
         for i = 1, #links do
@@ -568,6 +843,71 @@ function C.onRepair(worldobjects, object, playerObj, scrap, screws)
     if not object or not scrap or not screws then return end
     if not C.approach(playerObj, object) then return end
     ISTimedActionQueue.add(OG_RepairArray:new(playerObj, object, scrap, screws))
+end
+
+------------------------------------------------------- coverage and buildings
+
+--- Show / Hide power coverage: the whole system's reach, from the controller
+--  or from any transformer in it.
+function C.coverageMenu(menu, target, playerObj)
+    local coverage = OffGrid.Coverage
+    if not coverage then return end
+    local shown = coverage.isSelected(target, playerObj)
+    local key = shown and "ContextMenu_OffGrid_HideCoverage" or "ContextMenu_OffGrid_ShowCoverage"
+    local option = C.icon(menu:addOption(getText(key), target, coverage.toggle, playerObj),
+                          menu, shown and "coverageHide" or "coverageShow")
+    local tip = ISWorldObjectContextMenu.addToolTip()
+    tip.description = getText("Tooltip_OffGrid_Coverage")
+    option.toolTip = tip
+end
+
+--- Wire up the building, Choose buildings..., Unwire the buildings.
+--
+--  Sent to the authority, which resolves the building, checks the reach and
+--  stores the footprint; never written here (see C.onEqualise for why a
+--  client must not push a part's ModData). The server accepts these from
+--  anywhere within the part's own reach, so there is no walk: the player is
+--  on site, and the Building Picker is used from where they stand.
+function C.buildingMenu(menu, worldobjects, target, playerObj, part)
+    local n = wiredCount(P.data(target))
+    if n == 0 then
+        local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireBuilding"), worldobjects,
+                                          C.onWireBuilding, target, playerObj),
+                           menu, "wireBuilding")
+        opt.toolTip = C.tip(getText("Tooltip_OffGrid_WireBuilding"))
+    end
+    local pick = C.icon(menu:addOption(getText("ContextMenu_OffGrid_ChooseBuildings"), worldobjects,
+                                       C.onChooseBuildings, target, playerObj),
+                        menu, "chooseBuildings")
+    pick.toolTip = C.tip(getText("Tooltip_OffGrid_ChooseBuildings"))
+    if n > 0 then
+        local opt = C.icon(menu:addOption(P.txt("ContextMenu_OffGrid_UnwireBuildings", n), worldobjects,
+                                          C.onUnwireBuildings, target, playerObj),
+                           menu, "unwireBuildings")
+        opt.toolTip = C.tip(getText("Tooltip_OffGrid_UnwireBuildings"))
+    end
+end
+
+local function partArgs(object)
+    local sq = object and object:getSquare()
+    if not sq then return nil end
+    return { x = sq:getX(), y = sq:getY(), z = sq:getZ(), kind = P.partOf(object) }
+end
+
+function C.onWireBuilding(worldobjects, object, playerObj)
+    local args = partArgs(object)
+    if args then C.send(playerObj, "bwDefault", args) end
+end
+
+function C.onUnwireBuildings(worldobjects, object, playerObj)
+    local args = partArgs(object)
+    if args then C.send(playerObj, "bwClear", args) end
+end
+
+function C.onChooseBuildings(worldobjects, object, playerObj)
+    -- OG_Picker loads after this file (see the note on OG_Info at the top),
+    -- so it is reached through its table, not required.
+    if OffGrid.Picker and OffGrid.Picker.open then OffGrid.Picker.open(playerObj, object) end
 end
 
 Events.OnFillWorldObjectContextMenu.Add(C.onFill)

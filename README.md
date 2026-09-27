@@ -1,13 +1,14 @@
 # Off-Grid: Solar Power
 
 Solar power for Project Zomboid Build 42 that behaves like solar power. Panels on the ground or bolted flat to a roof,
-a chain of battery racks in a back room, and a charge controller that powers everything around it. Silent, unlike a
+a chain of battery racks in a back room, and a charge controller that powers everything around it. Wire up whole
+buildings, carry power across town with transformers, and light your paths with solar lamps. Silent, unlike a
 generator.
 
 - **Steam Workshop:** https://steamcommunity.com/sharedfiles/filedetails/?id=3789425624
 - **How it works:** see the [wiki](https://github.com/turret001/OffGrid/wiki)
 - **FAQ:** [short answers to common questions](https://github.com/turret001/OffGrid/wiki/FAQ)
-- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 2.10.1 · **Game:** Build 42
+- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 2.12.0 · **Game:** Build 42
 
 ![Build your first rig](images/01-build-your-first-rig.png)
 
@@ -37,6 +38,12 @@ an issue here.
 - **Water Pipes:** a running sprinkler rinses dust off arrays in its reach, the same way rain does.
 - **LG Extended Electricity:** Off-Grid tells it the charge controller is not a petrol generator.
 - **Better Generator Info:** the controller is a real generator, so its overlay can include a running one.
+
+## Credits
+
+- Menu icons: [Tabler Icons](https://tabler.io/icons), MIT. The licence ships with them in
+  `OffGrid/common/media/ui/OffGrid/Menu/LICENSE-tabler-icons.txt`.
+- Realistic Mode's 1993 panel figures: Alwar, on the Workshop Suggestions board.
 
 ## License
 
