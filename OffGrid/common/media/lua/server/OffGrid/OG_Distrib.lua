@@ -342,8 +342,10 @@ local function reshaped(rec)
             end
             if not keep then rec.drawn[k] = nil end
         end
-        local total, cold = I().cacheTotals(rec)
-        rec.load, rec.cold = total, cold
+        -- the backup's units with the watts: the tick holds them from
+        -- falling until the new sweep is round (OG_System.updateController)
+        local total, cold, units = I().cacheTotals(rec)
+        rec.load, rec.cold, rec.loadUnits = total, cold, units
         I().foldKinds(rec)
     end
     rec.swept = false
@@ -481,6 +483,9 @@ end
 --  It is an ESTIMATE of the switch and nothing else. It never writes a charge
 --  onto a battery: the catch-up replay still settles the energy when the
 --  controller loads, exactly as it always has, so nothing can be billed twice.
+--  Nor fuel off a backup generator: the snapshot carries copies of the units
+--  (OG_BackupSys.snapshot), stepped with a live tick's top-up, Auto and burn,
+--  and only the copies burn.
 --  The snapshot lives in its own global table (not the registry, which goes
 --  to every client), so it survives a restart without a visit.
 
@@ -517,6 +522,9 @@ function D.capture(rec, snap)
         load = snap.load or 0, online = snap.online == true, lvd = snap.lvd == true,
         lvdAt = snap.lvdAt, eff = snap.eff, harvest = snap.harvest,
         powered = snap.powered == true, want = snap.want, hold = snap.hold or 0,
+        -- the backup generators, copied already (OG_BackupSys.snapshot); nil
+        -- for a system with none
+        backup = snap.backup,
     }
 end
 
@@ -528,19 +536,32 @@ local function stepRemote(snap, env, now)
     local sys = { arrays = snap.arrays, bank = snap.bank, load = snap.load,
                   online = snap.online, lvd = snap.lvd, powered = snap.powered,
                   inverterEff = snap.eff, harvest = snap.harvest }
+    -- Its backup generators run on paper too, on the snapshot's copies: the
+    -- top-up, Auto and running set a live tick hands the model, and the fuel
+    -- and wear settled after it (OG_BackupSys).
+    local BK = snap.backup and OffGrid.BackupSys
+    if BK then BK.remoteBefore(snap, sys, env, dt, now) end
     local _, tel = OffGrid.Model.step(sys, dt, env)
+    if BK then BK.remoteAfter(snap, tel, dt, now) end
     snap.lvd = sys.lvd == true
-    if tel.lvdOpened then snap.lvdAt = now
+    -- OG_System's recordShed: no stamp for a shed opened with no capacity
+    -- (a generator copy run dry on a rig with no cells), and a stamp kept
+    -- through a step with none.
+    if tel.lvdOpened then snap.lvdAt = ((tel.capacity or 0) > 0) and now or nil
     elseif tel.lvdClosed or not snap.lvd then snap.lvdAt = nil end
-    -- OG_System's holdPower, on the snapshot: a real shed cuts at once, and
-    -- every other change has to hold for POWER_HOLD ticks first.
+    -- OG_System's holdPower, on the snapshot: a real shed, or one opened this
+    -- step, cuts at once, and every other change has to hold for POWER_HOLD
+    -- ticks first.
     local powered
-    if snap.lvd and snap.lvdAt ~= nil then
+    if snap.lvd and (snap.lvdAt ~= nil or tel.lvdOpened) then
         snap.want, snap.hold, powered = false, 0, false
     else
         local b = snap.bank or {}
-        local want = (snap.online and not snap.lvd and (b.cells or 0) > 0
-                      and (tel.arrayWatts > 0 or (b.charge or 0) > 0)) and true or false
+        -- holdPower's want: a running generator lights the house with no
+        -- cells and no sun.
+        local bkCap = tel.backupCap or 0
+        local want = (snap.online and not snap.lvd and ((b.cells or 0) > 0 or bkCap > 0)
+                      and (tel.arrayWatts > 0 or (b.charge or 0) > 0 or bkCap > 0)) and true or false
         if want ~= snap.want then
             snap.want, snap.hold = want, 0
         else
@@ -792,15 +813,20 @@ end
 
 --- Tell a player why, in their own language. A dedicated server loads no mod
 --  translations, so it sends the key and the client translates it
---  (OG_Commands); singleplayer shows it directly.
-local function note(player, key)
+--  (OG_Commands); singleplayer shows it directly. A refusal is drawn in the
+--  warning colour (P.haloNote); `news` is a note that is not one (a
+--  building wired in or unwired), which keeps the game's own colour. The
+--  note the server sends says which it is.
+local function note(player, key, news)
     if not player then return end
+    local warn = news ~= true
     if isServer() then
         if sendServerCommand then
-            sendServerCommand(player, "OffGrid", "note", { key = key, id = try(player, "getOnlineID") })
+            sendServerCommand(player, "OffGrid", "note",
+                              { key = key, id = try(player, "getOnlineID"), warn = warn })
         end
-    elseif player.setHaloNote then
-        player:setHaloNote(getText(key))
+    else
+        P.haloNote(player, getText(key), warn)
     end
 end
 D.note = note
@@ -904,7 +930,7 @@ local function add(player, obj, rec, ctrl, t)
                         rects = R.encodeRects(R.rectsOf(fp)) }
     writeTargets(obj, list)
     replan(rec)
-    note(player, "IGUI_OffGrid_BwAdded")
+    note(player, "IGUI_OffGrid_BwAdded", true)
     return true
 end
 D.add = add
@@ -913,6 +939,17 @@ local REFUSAL = {
     unwired = "IGUI_OffGrid_BwUnwired",
     far = "IGUI_OffGrid_BwTooFarAway",
 }
+
+--- May this player wire buildings to this part? Its owner's group only
+--  (Can, 2026-09-29: "Lock them in 3.0.0"): the part's pick-up lock,
+--  OG_Place's G.mayUse, asked on the authority once the part is found and
+--  before any other reason, and told to a player it refuses in the warning
+--  colour. No player is the authority's own call.
+local function usable(player, obj)
+    local G = OffGrid.Place
+    if not (player and G and G.mayUse) then return true end
+    return G.mayUse(player, obj)
+end
 
 -- When each player's last wiring command arrived, by account name.
 local lastCmd = {}
@@ -942,6 +979,7 @@ function D.cmdDefault(player, args)
         if REFUSAL[rec] then note(player, REFUSAL[rec]) end
         return false
     end
+    if not usable(player, obj) then return false end
     local r, v = range()
     local t = B.defaultTarget(x, y, z, r, v)
     if not t then
@@ -959,9 +997,10 @@ function D.cmdClear(player, args)
         if REFUSAL[rec] then note(player, REFUSAL[rec]) end
         return false
     end
+    if not usable(player, obj) then return false end
     if writeTargets(obj, {}) then
         replan(rec)
-        note(player, "IGUI_OffGrid_BwRemoved")
+        note(player, "IGUI_OffGrid_BwRemoved", true)
     end
     return true
 end
@@ -975,6 +1014,7 @@ function D.cmdPick(player, args)
         if REFUSAL[rec] then note(player, REFUSAL[rec]) end
         return false
     end
+    if not usable(player, obj) then return false end
     local sx, sy, sz = tonumber(args.sx), tonumber(args.sy), tonumber(args.sz)
     if not (sx and sy and sz) then return false end
 
@@ -995,7 +1035,7 @@ function D.cmdPick(player, args)
             table.remove(list, n)
             writeTargets(obj, list)
             replan(rec)
-            note(player, "IGUI_OffGrid_BwRemoved")
+            note(player, "IGUI_OffGrid_BwRemoved", true)
             return true
         end
     end

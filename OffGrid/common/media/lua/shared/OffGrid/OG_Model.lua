@@ -891,6 +891,193 @@ function M.repairStep(condition, amount)
     return M.clamp((condition or 0) + max(0, amount or 0), 0, 100)
 end
 
+------------------------------------------------------------ backup generators
+
+--  A converted generator (2026-09-27) is a second source the controller
+--  runs beside the sun: it serves what is switched on, charges the bank
+--  with what is left, and burns petrol the way a normal generator does for
+--  the same appliances. It never lands in the solar figures (t.generated,
+--  t.arrayWatts, t.wasted), which feed the DAY trace, clipping,
+--  equalisation and every "is the sun up" test. The tank, the sandbox and
+--  the barrels all arrive as arguments (OG_BackupSys); nothing here reads
+--  the world.
+
+-- A normal generator burns 0.02 of the engine's units an hour running
+-- nothing, on top of the units of every appliance it powers, times the
+-- server's Generator Fuel Consumption (IsoGenerator.update).
+M.BACKUP_IDLE_UNITS  = 0.02
+-- In Realistic Mode it burns like a real petrol generator instead (Can,
+-- 2026-09-29: "keep vanilla rate but make adjustments for the realistic
+-- mode sandbox option as well"): 0.15 L an hour for each kW it is rated,
+-- running or not, and 0.45 L for each kWh it delivers, charging included,
+-- times Backup generator fuel use and never Generator Fuel Consumption. A
+-- 4 kW Lectromax idles on 0.6 L an hour and burns 2.4 L at full output; a
+-- 10 L tank runs a 1 kW house about 9.5 hours. M.realFuelUse bills it.
+M.BACKUP_REAL_IDLE_L = 0.15
+M.BACKUP_REAL_KWH_L  = 0.45
+-- It loses 1 or 2 points of condition on a 1-in-N roll each running hour.
+-- The model takes the average, 1.5 points every N hours, and carries the
+-- fraction, so a minute's tick, an hour's catch-up slice and the away
+-- estimate take the same toll.
+M.BACKUP_WEAR_POINTS = 1.5
+
+--- Share a request for energy among the running generators.
+--
+--  units = { { key, rating (W), tank (L, after this step's feed draw),
+--              idle (L per running hour, its own; nil: k.idle) }, ... }
+--  need  = Wh asked for; dt = hours
+--  k     = { idle = L per running hour, perWh = L per Wh delivered }
+--
+--  Returns { total, cap, [i] = { key, wh, capWh } }, one entry per unit in
+--  the order given. A unit gives at most its rating over dt, and at most
+--  what its tank pays for after its idle burn (capWh; nothing from an empty
+--  tank). The request is split in proportion to rating; a share a unit
+--  cannot pay for passes to the others, again by rating, until the request
+--  is met or every unit is spent. `cap` is the set's whole capWh and
+--  `total` what it gave, the smaller of the request and `cap`. A unit's own
+--  idle is Realistic Mode's, where a unit idles by its rating.
+function M.backupSupply(units, need, dt, k)
+    units = units or {}
+    dt = max(0, dt or 0)
+    k = k or {}
+    local idle = max(0, k.idle or 0)
+    local perWh = max(0, k.perWh or 0)
+    local out = { total = 0, cap = 0 }
+    local rating, spent = {}, {}
+    for i = 1, #units do
+        local u = units[i]
+        rating[i] = max(0, u.rating or 0)
+        local capWh = 0
+        if (u.tank or 0) > 0 then
+            local ui = u.idle ~= nil and max(0, u.idle) or idle
+            capWh = rating[i] * dt
+            if perWh > 0 then capWh = min(capWh, max(0, u.tank - ui * dt) / perWh) end
+        end
+        out[i] = { key = u.key, wh = 0, capWh = capWh }
+        out.cap = out.cap + capWh
+        spent[i] = capWh <= 0
+    end
+    -- Each round either meets what is left or spends at least one more
+    -- unit, so as many rounds as there are units always finish. A spent
+    -- unit is marked, not compared: wh + (capWh - wh) need not come back as
+    -- capWh in doubles, and a unit left one unit in the last place short
+    -- would swallow a share it cannot give in every later round.
+    local left = max(0, need or 0)
+    for _ = 1, #units do
+        if left <= 0 then break end
+        local open = 0
+        for i = 1, #units do
+            if not spent[i] then open = open + rating[i] end
+        end
+        if open <= 0 then break end
+        local given = 0
+        for i = 1, #units do
+            if not spent[i] then
+                local o = out[i]
+                local share = left * rating[i] / open
+                local room = o.capWh - o.wh
+                if share >= room then
+                    o.wh = o.capWh
+                    spent[i] = true
+                    given = given + room
+                else
+                    o.wh = o.wh + share
+                    given = given + share
+                end
+            end
+        end
+        left = left - given
+    end
+    for i = 1, #units do out.total = out.total + out[i].wh end
+    return out
+end
+
+--- Litres one generator burned over a step.
+--
+--  unit  = { wh = Wh it delivered, dtRun = hours it ran (the step, while running),
+--            loadWh, chargeWh = the part of wh that served the load and the
+--            part that charged, when the caller knows them (M.step does) }
+--  parts = { U = Wh every generator delivered; loadWh, chargeWh = the part
+--            of U that served the load and the part that charged the bank;
+--            billedWh = the load served this step; loadUnits = the engine
+--            units of the appliances the load scan counted; unitlessW =
+--            load watts no engine unit covers (a transformer's loss);
+--            dt = hours; wpu = W per engine unit for those and for charging }
+--  gfc   = the server's Generator Fuel Consumption; use = Backup generator
+--          fuel use. Either at 0 is free petrol, as in vanilla.
+--
+--  A normal generator burns its idle 0.02 units plus the units of what it
+--  powers, times gfc, every hour. So does this one: the idle for the time
+--  it ran, and its share of the backup's energy times the share of the
+--  load's units the backup carried. Load watts with no unit, and charging,
+--  which a normal generator never does, cost one unit per `wpu` watts, the
+--  rate OG_Loads already bills an appliance it cannot name at. A
+--  fridge-freezer, eight lights and a TV (0.13 + 8 x 0.002 + 0.03 units)
+--  come to 0.0196 L an hour at the default 0.1, vanilla's own figure.
+--
+--  A unit that gives its own loadWh and chargeWh is billed on its own split,
+--  not on its share of the set's: M.step caps each unit's load at the load's
+--  price and its charging at charging's, so a bill on its own split never
+--  passes its tank (final review, 2026-09-28).
+function M.fuelUse(unit, parts, gfc, use)
+    local gu = max(0, gfc or 0) * max(0, use or 0)
+    if gu <= 0 then return 0 end
+    parts = parts or {}
+    local dt = max(0, parts.dt or 0)
+    local wpu = parts.wpu or 0
+    local U = parts.U or 0
+    local billed = parts.billedWh or 0
+    local unitless = min(billed, max(0, parts.unitlessW or 0) * dt)
+    local loadUnits = max(0, parts.loadUnits or 0) * dt + (wpu > 0 and unitless / wpu or 0)
+    local idle = M.BACKUP_IDLE_UNITS * max(0, unit.dtRun or 0)
+    if unit.loadWh ~= nil or unit.chargeWh ~= nil then
+        local perLoadWh = billed > 0 and loadUnits / billed or 0
+        return gu * (idle + max(0, unit.loadWh or 0) * perLoadWh
+                     + (wpu > 0 and max(0, unit.chargeWh or 0) / wpu or 0))
+    end
+    local s = U > 0 and (unit.wh or 0) / U or 0
+    local f = billed > 0 and (parts.loadWh or 0) / billed or 0
+    local chargeUnits = wpu > 0 and (parts.chargeWh or 0) / wpu or 0
+    return gu * (idle + s * (f * loadUnits + chargeUnits))
+end
+
+--- Litres one generator burned over a step in Realistic Mode: a real
+--  petrol generator's burn, M.BACKUP_REAL_IDLE_L an hour for each rated kW
+--  for the time it ran, and M.BACKUP_REAL_KWH_L for each kWh it delivered,
+--  load and charging alike, times `use` (Backup generator fuel use; 0 is
+--  free). Generator Fuel Consumption plays no part.
+--
+--  unit = { wh = Wh it delivered, dtRun = hours it ran, rating = W }
+function M.realFuelUse(unit, use)
+    local u = max(0, use or 0)
+    if u <= 0 or not unit then return 0 end
+    local ratedKw = max(0, unit.rating or 0) / 1000
+    return u * (M.BACKUP_REAL_IDLE_L * ratedKw * max(0, unit.dtRun or 0)
+                + M.BACKUP_REAL_KWH_L * max(0, unit.wh or 0) / 1000)
+end
+
+--- The same rule as prices for M.backupSupply: { idle = L per running hour
+--  for a unit of `rating` W, perWh = L per Wh delivered }.
+function M.realPrices(rating, use)
+    local u = max(0, use or 0)
+    return u * M.BACKUP_REAL_IDLE_L * max(0, rating or 0) / 1000,
+           u * M.BACKUP_REAL_KWH_L / 1000
+end
+
+--- Condition points a running generator loses over `hours`, and the
+--  remainder to carry to the next step.
+--
+--  unit = { wear = remainder (0..1), wearN = N, the brand's 1-in-N chance
+--  per running hour }. No roll: the average (M.BACKUP_WEAR_POINTS), so live
+--  ticks, a catch-up and the away estimate agree to the point.
+function M.wear(unit, hours)
+    local acc = max(0, unit.wear or 0)
+    local n = unit.wearN or 0
+    if n > 0 then acc = acc + M.BACKUP_WEAR_POINTS / n * max(0, hours or 0) end
+    local points = floor(acc)
+    return points, acc - points
+end
+
 ------------------------------------------------------------------ cold chain
 
 --- Hours the bank can keep the refrigeration alive, at the current draw.
@@ -1028,6 +1215,78 @@ function M.reconnectWh(dodFloor, nominal, capacity, demandW)
     return min(max(M.lvdThreshold(floor) * nominal, run), M.LVD_TOP_SOC * takes)
 end
 
+--- The bank's two sizes as M.step reads them: what it takes now (after
+--  health and cold) and what its cells hold with the weather taken out. A
+--  caller that gives capacity and no nominal has no cold in it.
+local function bankSizes(bank, tempC)
+    local cap = bank.capacity or M.bankCapacity(bank, tempC)
+    local nominal = bank.nominal
+    if nominal == nil then nominal = bank.capacity or M.bankNominalWh(bank) end
+    return cap, nominal
+end
+
+--- The damage floor on the gauge's scale: the charge the disconnect opens
+--  at, as a share of what the bank takes now, which is the scale BATT
+--  prints on. M.step reports it as t.floorSoc and judges the disconnect on
+--  it. The backup generator's Auto sets its start level above this floor
+--  BEFORE the step runs (2026-09-27), and it reads this function, never a
+--  copy of the arithmetic: a start level worked out from a floor a point
+--  away from the step's would let the house go dark before a generator was
+--  asked for.
+function M.floorSoc(bank, tempC)
+    bank = bank or {}
+    local cap, nominal = bankSizes(bank, tempC or 20)
+    local dod = bank.dod or M.DAMAGE_SOC
+    if cap > 0 then return clamp(dod * nominal / cap, 0, 1) end
+    return dod
+end
+
+--- What the arrays deliver now, in W after the inverter and the
+--  controller's harvest, and the strongest plane-of-array irradiance among
+--  them (W/m^2). Moved out of M.step (2026-09-27) so the backup generator's
+--  Auto can ask what the sun gives before the step runs and get the very
+--  number the step then uses.
+function M.solarWatts(sys, env)
+    local invEff = sys.inverterEff or M.INVERTER_EFF
+    local harvest = sys.harvest or 1.0
+    local watts, irradiance = 0, 0
+    for i = 1, #(sys.arrays or {}) do
+        local a = sys.arrays[i]
+        local w, poa = M.arrayOutput(a, env)
+        watts = watts + w
+        if poa > irradiance then irradiance = poa end
+    end
+    return watts * invEff * harvest, irradiance
+end
+
+--- The running set's two passes in M.step, in the order the energy goes:
+--  first the part of `loadWh` the sun leaves, at the load's price (pL L a
+--  Wh, each unit's tank paying its idle first), then the room the sun left
+--  in the bank, from what each unit has left of its rating and its tank, at
+--  charging's price (pC). Returns both backupSupply results, and what the
+--  set could give asked for this load: all the load pass gave, and all the
+--  charge pass could.
+--
+--  One blended price for both (final review, 2026-09-28) capped a nearly
+--  empty tank at the blend, but the energy it gave went to the load first:
+--  a 0.005 L tank was billed 0.0104 L, and half of what it gave was free.
+local function backupPasses(units, loadWh, S, toFill, dt, idle, pL, pC)
+    local one = M.backupSupply(units, max(0, loadWh - S), dt, { idle = idle, perWh = pL })
+    local rest = {}
+    for i = 1, #units do
+        local u, got = units[i], one[i]
+        local ui = u.idle ~= nil and max(0, u.idle) or idle
+        rest[i] = {
+            key = u.key,
+            rating = dt > 0 and max(0, max(0, u.rating or 0) * dt - got.wh) / dt or 0,
+            tank = max(0, (u.tank or 0) - ui * dt - got.wh * pL),
+        }
+    end
+    local two = M.backupSupply(rest, max(0, toFill - max(0, S - loadWh)), dt,
+                               { idle = 0, perWh = pC })
+    return one, two, one.total + two.cap
+end
+
 --- Advance a whole system by `dtHours`.
 --
 --  `sys` is mutated in place and also returned, alongside a telemetry table
@@ -1047,12 +1306,31 @@ end
 --                        -- generator was on); nil for a catch-up slice,
 --                        -- which keeps no record of it and bills as powered
 --    inverterEff, harvest -- from the controller's grade
+--    backup = nil or {   -- the backup generators RUNNING this step (OG_BackupSys)
+--      units = { { key, rating (W), tank (L) }, ... },
+--      gfc, use,         -- Generator Fuel Consumption, Backup generator fuel use
+--      loadUnits,        -- the engine units of what the load scan counted
+--      unitlessW,        -- load watts no engine unit covers (transformer loss)
+--      wpu,              -- W per engine unit for those and for charging (OG_Loads)
+--      realistic,        -- Realistic Mode: burn by M.realFuelUse instead (the
+--                        -- caller reads the sandbox; this file never does)
+--    }
 --  }
 --
 --  The bank arrives pre-aggregated rather than as a tier, because a real
 --  system is a mix: three scrap crates and one sealed cabinet share one state
 --  of charge, and the efficiency and depth-of-discharge that govern them are
 --  the capacity-weighted blend the caller worked out.
+--
+--  A running backup generator is a second source with figures of its own:
+--  t.backupCap (B, what the running set could give this step, Wh),
+--  t.backupWh and t.backupWatts (what it gave), t.backupLoadWh and
+--  t.backupChargeWh (the part that served the load and the part that
+--  charged), t.bypass, and t.backupUnits = { { key, wh, fuel (L) }, ... }.
+--  The sun goes first; the generators fill the rest of the load, then the
+--  room the sun left in the bank, and no more. While the sun and B can
+--  carry everything switched on (the supply bypass), a shed closes at once
+--  whatever the charge, and the load never touches the bank.
 function M.step(sys, dtHours, env)
     local t = {
         generated = 0, consumed = 0, stored = 0, drawn = 0,
@@ -1060,6 +1338,8 @@ function M.step(sys, dtHours, env)
         arrayWatts = 0, loadWatts = 0,
         lvdOpened = false, lvdClosed = false, reconnectSoc = 0, socIn = 0,
         floorSoc = 0,
+        backupCap = 0, backupWh = 0, backupWatts = 0,
+        backupLoadWh = 0, backupChargeWh = 0, bypass = false, backupUnits = {},
     }
     dtHours = max(0, dtHours or 0)
     local bank = sys.bank or { cells = 0, charge = 0, health = 1 }
@@ -1067,17 +1347,9 @@ function M.step(sys, dtHours, env)
     local chargeEff = bank.eff or M.CHARGE_EFF
     local dodFloor = bank.dod or M.DAMAGE_SOC
     local decayRate = bank.decay or M.DAMAGE_RATE
-    local invEff = sys.inverterEff or M.INVERTER_EFF
-    local harvest = sys.harvest or 1.0
 
     -- generation
-    for i = 1, #(sys.arrays or {}) do
-        local a = sys.arrays[i]
-        local w, poa = M.arrayOutput(a, env)
-        t.arrayWatts = t.arrayWatts + w
-        if poa > t.irradiance then t.irradiance = poa end
-    end
-    t.arrayWatts = t.arrayWatts * invEff * harvest
+    t.arrayWatts, t.irradiance = M.solarWatts(sys, env)
     t.generated = t.arrayWatts * dtHours
 
     -- The floor and the reconnect point are charges in Wh, worked out from
@@ -1099,21 +1371,69 @@ function M.step(sys, dtHours, env)
     -- higher on the gauge in the cold. The disconnect is judged on that
     -- scale, on the charge as it stands at the START of the tick, so the
     -- number the player reads and the number compared are still one number.
-    local cap = bank.capacity or M.bankCapacity(bank, tempC)
-    local nominal = bank.nominal
-    if nominal == nil then nominal = bank.capacity or M.bankNominalWh(bank) end
+    local cap, nominal = bankSizes(bank, tempC)
     local floorWh = dodFloor * nominal
     local lvd = sys.lvd == true
     local charge = max(0, bank.charge or 0)
     local socIn = cap > 0 and clamp(charge / cap, 0, 1) or 0
     t.socIn = socIn
+    t.floorSoc = M.floorSoc(bank, tempC)
     if cap > 0 then
-        t.floorSoc = clamp(floorWh / cap, 0, 1)
         t.reconnectSoc = clamp(M.reconnectWh(dodFloor, nominal, cap, sys.load) / cap, 0, 1)
     else
-        t.floorSoc = dodFloor
         t.reconnectSoc = M.lvdThreshold(dodFloor)
     end
+
+    -- Backup generators: what the running set could give this step (B),
+    -- asked against the load as if the house were lit (D, everything
+    -- switched on, which the load scan counts through a shed) plus the room
+    -- the sun leaves in the bank. Its tanks pay for the load first, at the
+    -- load's units, and charge with what is left, at charging's
+    -- (backupPasses); the bill per unit is M.fuelUse, at the end. While the
+    -- sun and B carry all of D the shed closes here, whatever the charge and
+    -- whatever the bank holds, before the reconnect test below: a house a
+    -- generator can light is not left dark to wait for the batteries.
+    local backup = sys.backup
+    local units = backup and backup.units or {}
+    local S = t.generated
+    local toFill, B = 0, 0
+    local idle, pL, pC = 0, 0, 0
+    -- Realistic Mode's burn (backup.realistic, passed in by the caller): each
+    -- unit idles by its own rating and every Wh costs the same, load or
+    -- charge (M.realPrices). The units are copied with their idle, never
+    -- written: they are the caller's.
+    local real = backup ~= nil and backup.realistic == true
+    if #units > 0 then
+        toFill = chargeEff > 0 and max(0, cap - charge) / chargeEff or 0
+        local Dwh = max(0, sys.load or 0) * dtHours
+        if real then
+            local priced = {}
+            for i = 1, #units do
+                local u = units[i]
+                local ui, perWh = M.realPrices(u.rating, backup.use)
+                priced[i] = { key = u.key, rating = u.rating, tank = u.tank, idle = ui }
+                pL, pC = perWh, perWh
+            end
+            units = priced
+        else
+            local gu = max(0, backup.gfc or 0) * max(0, backup.use or 0)
+            local wpu = backup.wpu or 0
+            pC = wpu > 0 and gu / wpu or 0
+            local unitless = min(Dwh, max(0, backup.unitlessW or 0) * dtHours)
+            pL = Dwh > 0
+                and (gu * max(0, backup.loadUnits or 0) * dtHours + unitless * pC) / Dwh or 0
+            idle = gu * M.BACKUP_IDLE_UNITS
+        end
+        local _, _, setCap = backupPasses(units, Dwh, S, toFill, dtHours, idle, pL, pC)
+        B = setCap
+        t.backupCap = B
+        t.bypass = dtHours > 0 and S + B >= Dwh
+        if t.bypass and lvd then
+            lvd = false
+            t.lvdClosed = true
+        end
+    end
+
     if lvd and cap > 0 and M.lvdShouldClose(socIn, t.reconnectSoc) then
         lvd = false
         t.lvdClosed = true
@@ -1130,7 +1450,19 @@ function M.step(sys, dtHours, env)
     t.loadWatts = connected and demand or 0
     t.consumed = t.loadWatts * dtHours
 
-    local net = t.generated - t.consumed
+    -- What the generators give (U): the part of the billed load the sun
+    -- leaves, then the room in the bank the sun leaves, never more than
+    -- their tanks pay for. So U never lands in t.wasted, and while the
+    -- bypass holds the load never reaches the bank.
+    local one, two, U = nil, nil, 0
+    if #units > 0 then
+        one, two = backupPasses(units, t.consumed, S, toFill, dtHours, idle, pL, pC)
+        t.backupLoadWh = one.total
+        t.backupChargeWh = two.total
+        U = one.total + two.total
+    end
+
+    local net = t.generated + U - t.consumed
 
     if net >= 0 then
         -- A chemistry that keeps nothing stores nothing, and all of the
@@ -1168,9 +1500,10 @@ function M.step(sys, dtHours, env)
     -- load: lighting the house now would only shed it again a minute later,
     -- so the disconnect opens before it ever connects. Under a sun that
     -- carries the load it connects, as a real disconnect does on charging
-    -- voltage.
+    -- voltage. A running backup generator counts with the sun: what the
+    -- set can give (B) lights the house as well.
     if not connected and demand > 0 and not lvd and cap > 0
-            and socIn <= t.floorSoc + M.FLOOR_EPS and t.generated < demand * dtHours then
+            and socIn <= t.floorSoc + M.FLOOR_EPS and t.generated + B < demand * dtHours then
         lvd = true
         t.lvdOpened = true
     end
@@ -1185,6 +1518,29 @@ function M.step(sys, dtHours, env)
     t.soc = soc
     t.capacity = cap
     t.charge = bank.charge or 0
+
+    -- The backup's own figures, and each unit's petrol, billed on its own
+    -- split of load and charging. Every running unit burns its idle for the
+    -- whole step, even one that gave nothing.
+    t.backupWh = U
+    t.backupWatts = dtHours > 0 and U / dtHours or 0
+    if one then
+        local parts = { U = U, loadWh = t.backupLoadWh, chargeWh = t.backupChargeWh,
+                        billedWh = t.consumed, loadUnits = backup.loadUnits or 0,
+                        unitlessW = backup.unitlessW or 0, dt = dtHours, wpu = backup.wpu }
+        for i = 1, #units do
+            local wh1, wh2 = one[i].wh, two[i].wh
+            local fuel
+            if real then
+                fuel = M.realFuelUse({ wh = wh1 + wh2, dtRun = dtHours, rating = units[i].rating },
+                                     backup.use)
+            else
+                fuel = M.fuelUse({ wh = wh1 + wh2, dtRun = dtHours, loadWh = wh1, chargeWh = wh2 },
+                                 parts, backup.gfc, backup.use)
+            end
+            t.backupUnits[i] = { key = one[i].key, wh = wh1 + wh2, fuel = fuel }
+        end
+    end
     sys.bank = bank
     sys.lvd = lvd
     return sys, t
@@ -1243,6 +1599,263 @@ function M.forecastDay(sys, env, stepMinutes)
         h = h + stepH
     end
     return total, peak, peakHour, samples
+end
+
+
+------------------------------------------------------------------ backup Auto
+
+--- Auto: when the controller starts and stops its backup generators (design
+--  "Auto"). The levels are shares of the charge on the gauge's scale, the one
+--  BATT prints and M.step judges the disconnect on, and they sit on a
+--  five-point grid.
+M.AUTO_START_OVER = 0.10   -- the default start, over the disconnect's threshold
+M.AUTO_START_MIN  = 0.05   -- the lowest start, over the same threshold
+M.AUTO_START_TOP  = 0.80   -- the highest start
+M.AUTO_STOP       = 0.90   -- the default stop
+M.AUTO_STOP_TOP   = 0.95   -- the highest stop
+M.AUTO_BAND       = 0.10   -- a stop sits at least this far over its start
+M.AUTO_OVER_FLOOR = 0.05   -- and Auto starts at least this far over the floor
+
+-- Twentieths: the grid every level sits on. Dividing by 20 lands on the
+-- nearest double to k/20 exactly; multiplying by 0.05 can miss it by a unit
+-- in the last place, and then 35 percent no longer equals itself.
+local function snapLevel(v)
+    return floor(v * 20 + 0.5) / 20
+end
+
+-- Up to the grid. The slack keeps a level a unit in the last place over a
+-- grid point (0.1 + 0.2 is 0.30000000000000004) from climbing a whole step.
+local function snapLevelUp(v)
+    return math.ceil(v * 20 - 1e-9) / 20
+end
+
+--- Auto's levels for a system, worked out afresh every tick.
+--
+--  `dod` is the rack's blended depth of discharge, `floorSoc` the
+--  disconnect's floor on the gauge's scale (M.floorSoc, the very number
+--  M.step compares), `bkStart` / `bkStop` the controller's stored levels,
+--  nil for the defaults. Returns start (the level the player set, clamped),
+--  stop, eff (the level Auto really starts at), and lo / hi, the limits of
+--  start for GEN's - and + (stop's are start + 0.10 and 0.95).
+--
+--  A stored level is clamped on every read, never on write, so a rack that
+--  changes grade moves its levels with it: start to [threshold + 5, 80],
+--  stop to [start + 10, 95], both on the grid. A blend's threshold can sit
+--  off the grid (0.27 + 0.05 = 0.32), so the lowest start is snapped UP: one
+--  snapped down would sit under threshold + 5. With lo and 80 both on the
+--  grid, the clamp can only land on it.
+--
+--  In the cold the floor climbs the gauge (a scrap crate at -10 C is cut off
+--  at 71 percent of what it takes, against a set start of 45), so eff climbs
+--  with it and a generator still starts before the house is cut off. The
+--  player's start is kept as set; GEN shows it and steps it.
+function M.backupLevels(dod, floorSoc, bkStart, bkStop)
+    if not M.finite(dod) then dod = nil end
+    local thr = M.lvdThreshold(dod)
+    local hi = M.AUTO_START_TOP
+    local lo = min(snapLevelUp(thr + M.AUTO_START_MIN), hi)
+    local start = M.finite(bkStart) and bkStart or thr + M.AUTO_START_OVER
+    start = clamp(snapLevel(start), lo, hi)
+    local stop = M.finite(bkStop) and bkStop or M.AUTO_STOP
+    -- start + 0.10 in doubles can land a unit off the grid (0.35 + 0.10 is
+    -- 0.44999999999999996); its snap cannot.
+    stop = clamp(snapLevel(stop), snapLevel(start + M.AUTO_BAND), M.AUTO_STOP_TOP)
+    local eff = max(start, (M.finite(floorSoc) and floorSoc or 0) + M.AUTO_OVER_FLOOR)
+    return start, stop, eff, lo, hi
+end
+
+--- The charge on the gauge's scale at the end of a step if the running
+--  generators gave their whole rating and the house drew `demandW`. Auto
+--  reads its levels against this, so it starts a generator before the step
+--  that would take the bank under its start level, not after it. Charging
+--  keeps the bank's efficiency and drawing does not, as in M.step. A bank
+--  with no capacity reads 0 (Auto does not read it then).
+function M.projectSoc(bank, solarW, supplyW, demandW, dt)
+    bank = bank or {}
+    local cap = bank.capacity or 0
+    if not (cap > 0) then return 0 end
+    local net = ((solarW or 0) + (supplyW or 0) - (demandW or 0)) * max(0, dt or 0)
+    local eff = bank.eff or M.CHARGE_EFF
+    local charge = max(0, bank.charge or 0) + (net > 0 and net * eff or net)
+    return clamp(charge / cap, 0, 1)
+end
+
+-- The two timers Auto reads, in hours. The model keeps them because it is
+-- the one that reads them: OG_Backup loads after this file, and a pure model
+-- reads no other module.
+M.AUTO_MIN_RUN  = 0.5    -- a generator runs this long before Auto may stop it
+M.AUTO_SUN_HOLD = 0.5    -- the sun carries the house this long before Auto stops one
+-- World hours are doubles, and thirty minute ticks measured as the difference
+-- of two of them can come back a hair short of 0.5 (1022.504 plus 60 and plus
+-- 90 steps of 1/60 do). Without the slack that tick would hold a generator a
+-- minute past its rule. Well under a game second.
+M.AUTO_EPS      = 1e-6
+
+-- Of two running generators, did `a` start after `b`? The later one is the
+-- one Auto stops first when the sun takes over. A start with no record reads
+-- as the earliest; a tie goes to the larger node key, the reverse of the
+-- start order.
+local function startedAfter(a, b)
+    if a.since ~= b.since then
+        if a.since == nil then return false end
+        if b.since == nil then return true end
+        return a.since > b.since
+    end
+    return a.key > b.key
+end
+
+--- Auto's decision for one step. Pure: the caller applies it, stamps the
+--  timers and keeps the clock.
+--
+--  state = {
+--    master   = the controller's Auto (bkAuto); nil reads as on
+--    shed     = a REAL shed: cells fitted and the disconnect opened by a
+--               deficit (d.lvdAt stamped). A rig with no cells is forced
+--               shed every tick, unstamped, and that is not a shed here:
+--               read as one, it started a generator at once on every such
+--               rig, even with the controller off in full sun
+--    replace  = a running generator left RUNNING (no fuel, fault, fire,
+--               indoors, off by server) since the last plan
+--    hasCells = the bank has capacity
+--    demandW  = what the house asks for; 0 while the controller is off
+--    solarW   = what the arrays make now (M.solarWatts); never the billed
+--               load, which is 0 while the house is dark
+--    dt       = the step, hours
+--    sunSince = the sun timer the last plan returned, or nil
+--    units    = every unit of the system, { key, rating, auto, run, fault,
+--               fuel, since, rest }: fuel is the tank and its own loaded
+--               feeds (the tank alone when far); auto nil reads as on, as
+--               P.data defaults it
+--  }
+--  soc    = M.projectSoc for this step (not read with no cells)
+--  levels = { start = eff, stop = stop, startSet = start } (M.backupLevels);
+--           the rules read start and stop only: in the frost every stop
+--           follows the raised start, not the one the player set
+--  clock  = the end of this step or slice, world hours
+--
+--  Returns { start = { key } or {}, stop = { key, ... }, sunSince }. The
+--  caller rests every generator it stops and stamps since = clock on the
+--  one it starts.
+--
+--  Stops are decided before starts, a step that stops a generator starts
+--  none, and a step starts at most one. So a one-minute tick and a one-hour
+--  catch-up slice stage the same generators in the same order.
+function M.autoPlan(state, soc, levels, clock)
+    local plan = { start = {}, stop = {} }
+    state = state or {}
+    levels = levels or {}
+    local units = state.units or {}
+    local dt = max(0, state.dt or 0)
+    local demandW = max(0, state.demandW or 0)
+    local solarW = max(0, state.solarW or 0)
+    local hasCells = state.hasCells == true
+    soc = M.finite(soc) and soc or 0
+    local startAt = levels.start or 0
+    -- In the cold eff climbs the gauge with the floor, and can pass the stop
+    -- the player set: Auto would stop a generator under the level it starts
+    -- it at, and start it again after every rest. The stop is kept a band
+    -- over where Auto really starts; in the warm eff is the set start and
+    -- this is the stop as set.
+    local stopAt = max(levels.stop or 1, startAt + M.AUTO_BAND)
+
+    -- 1. The sun timer: the arrays alone carry what the house asks for.
+    --    With cells a dark array carries nothing, so a generator charging at
+    --    night with the controller off goes on charging to its stop. With no
+    --    cells the sun alone lights nothing (the controller powers a house
+    --    from cells or a running generator, as before generators), so only a
+    --    house asking for nothing is carried: a generator left running for
+    --    it stops after the hold. Stopped for the sun instead, it left the
+    --    house dark from mid-morning until the sun fell short again (final
+    --    review, 2026-09-28).
+    local covering = (hasCells and solarW > 0 and solarW >= demandW)
+        or (not hasCells and demandW <= 0)
+    if covering then plan.sunSince = state.sunSince or (clock - dt) end
+
+    -- 2. The master switched off stops every running generator whose own
+    --    AUTO is on, its minimum run waived; manual ones run on; nothing
+    --    starts.
+    if state.master == false then
+        for i = 1, #units do
+            local u = units[i]
+            if u.run == "on" and u.auto ~= false then plan.stop[#plan.stop + 1] = u.key end
+        end
+        return plan
+    end
+
+    -- 3. What is running. A generator kept running by hand counts in every
+    --    decision; only AUTO generators past their minimum run can be
+    --    stopped, and the next one waits for all of them to get there.
+    local nRun, capW, allDone, done = 0, 0, true, {}
+    for i = 1, #units do
+        local u = units[i]
+        if u.run == "on" then
+            nRun = nRun + 1
+            capW = capW + max(0, u.rating or 0)
+            if u.auto ~= false then
+                if u.since == nil or clock - u.since >= M.AUTO_MIN_RUN - M.AUTO_EPS then
+                    done[#done + 1] = u
+                else
+                    allDone = false
+                end
+            end
+        end
+    end
+
+    -- 4. Stops, never while the house is shed: at the stop level all of
+    --    them; else, once the sun has carried the house for the hold and the
+    --    bank is a band over where Auto starts, the latest started.
+    if not state.shed then
+        if hasCells and soc >= stopAt then
+            for i = 1, #done do plan.stop[#plan.stop + 1] = done[i].key end
+        elseif plan.sunSince and clock - plan.sunSince >= M.AUTO_SUN_HOLD - M.AUTO_EPS
+                and (not hasCells or soc >= startAt + M.AUTO_BAND) then
+            local last
+            for i = 1, #done do
+                if last == nil or startedAfter(done[i], last) then last = done[i] end
+            end
+            if last then plan.stop[1] = last.key end
+        end
+    end
+    if #plan.stop > 0 then return plan end
+
+    -- 5. Starts. With nothing running: at once on a shed, at the start
+    --    level, or with no cells while the house asks for anything (the sun
+    --    alone lights nothing there). With something running: the next one
+    --    once every AUTO generator has done its minimum run, while they and
+    --    the sun fall short of the house and the bank is under its stop; the
+    --    sun counts then, as M.step takes it first. A generator that dropped
+    --    out is replaced at once, with no minimum run, as if it had carried
+    --    on to the stop.
+    local want
+    if nRun == 0 then
+        want = state.shed == true or (hasCells and soc <= startAt)
+            or (not hasCells and demandW > 0)
+    else
+        want = allDone and solarW + capW < demandW and (not hasCells or soc < stopAt)
+    end
+    if not want and state.replace then
+        want = (not hasCells and (nRun == 0 and demandW > 0
+                                  or nRun > 0 and solarW + capW < demandW))
+            or (hasCells and soc < stopAt)
+    end
+    if not want then return plan end
+
+    -- The fullest tank first (tank and its own feeds); a tie goes to the
+    -- smaller node key.
+    local pick
+    for i = 1, #units do
+        local u = units[i]
+        local fuel = u.fuel or 0
+        if u.auto ~= false and u.run ~= "on" and u.fault == nil and fuel > 0
+                and (u.rest == nil or clock >= u.rest - M.AUTO_EPS) then
+            if pick == nil or fuel > (pick.fuel or 0)
+                    or (fuel == (pick.fuel or 0) and u.key < pick.key) then
+                pick = u
+            end
+        end
+    end
+    if pick then plan.start[1] = pick.key end
+    return plan
 end
 
 
@@ -1538,9 +2151,15 @@ end
 --  A transformer lands on the controller or on another transformer: a grid
 --  runs out from the controller, transformer to transformer, and never
 --  through a panel or a rack.
+--
+--  A backup generator (2026-09-27) lands on the controller it feeds and on
+--  nothing else, and nothing lands on it: it is a leaf, so the controller
+--  that starts and stops it is never in doubt. Its lead is a short one
+--  (M.cableReach's default).
 function M.wireLegal(kind, targetKind)
     if targetKind == "controller" then
         return kind == "array" or kind == "bank" or kind == "transformer"
+            or kind == "backup"
     end
     if kind == "array" then return targetKind == "array" end
     if kind == "bank" then return targetKind == "bank" end

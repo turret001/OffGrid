@@ -2,7 +2,7 @@
 
      The controller's screen, built as the machine it claims to be: a charcoal
      bezel with corner screws, a five-lamp LED cluster, a green STN LCD with
-     four membrane keys under it, and the rotary main isolator on its own pale
+     five membrane keys under it, and the rotary main isolator on its own pale
      plate. 1:1 with the approved mockup (docs: the OG-1200 artifact), which
      is why there is no vanilla title bar -- the bezel IS the chrome, dragging
      comes from ISPanel.moveWithMouse, and closing is the drawn X.
@@ -21,6 +21,9 @@
        * Every pixel literal goes through px(). The face is laid out in the
          base font set's pixels and scaled by S, so a 4K player on the 4x
          fonts gets the same face at the size their text already is.
+       * The GEN page's buttons are the only click surfaces that come and
+         go: genVisibility shows them on that page of a live controller
+         only, over switches and boxes drawn from the same GEN rectangles.
 ]]
 
 require "ISUI/ISPanel"
@@ -81,7 +84,13 @@ local W = px(560)
 local PAD = px(26)                  -- bezel inset
 local BRAND_H = px(44)
 local LCD_W, LCD_H = px(372), px(252)
-local KEY_W, KEY_H, KEY_GAP = px(84), px(30), px(8)
+local KEY_H, KEY_GAP = px(30), px(8)
+-- Five keys and four gaps span the LCD exactly: 5 x 68 + 4 x 8 = 372 at the
+-- base size. Worked out from the LCD, not written as px(68): rounding at the
+-- 4x set makes px(68) 162 and px(8) 19, a row of 886 under an 884 px screen.
+-- Floored, a scaled row can only come out a pixel or two short. The 84x30
+-- key texture is drawn at this width (drawKeys scales it).
+local KEY_W = math.floor((LCD_W - 4 * KEY_GAP) / 5)
 local COLX = PAD + LCD_W + px(18)   -- right column x
 local COL_W = px(116)
 local MID_Y = px(18) + BRAND_H
@@ -95,10 +104,13 @@ OG_Window.SCALE = S
 OG_Window.LAYOUT = { W = W, H = H, PAD = PAD, LCD_W = LCD_W, LCD_H = LCD_H,
                      MID_Y = MID_Y, KEYS_Y = KEYS_Y }
 
-local PAGES = { "status", "loads", "batt", "day" }
+-- GEN is last, so the four older keys keep their places (and the panel test
+-- its child indices). It is always there, with or without a generator.
+local PAGES = { "status", "loads", "batt", "day", "gen" }
 local PAGE_KEY = {
     status = "IGUI_OffGrid_PgStatus", loads = "IGUI_OffGrid_PgLoads",
     batt = "IGUI_OffGrid_PgBatt", day = "IGUI_OffGrid_PgDay",
+    gen = "IGUI_OffGrid_PgGen",
 }
 
 ------------------------------------------------------------------- helpers
@@ -150,6 +162,138 @@ end
 
 local function fontH(font)
     return getTextManager():getFontHeight(font)
+end
+
+-------------------------------------------------------------- the GEN page
+
+-- The GEN page's controls, laid out once at file load like the keys, as Can
+-- signed them off on the GEN mockup and revised them on 2026-09-28 ("Add
+-- horizontal lines between generators"; "one button for Auto and one button
+-- for Start/Stop ... They should work like switches"; "instead of run, it
+-- should be ON/OFF"): the invisible buttons (createChildren) and the
+-- switches and boxes pageGen draws under them have to be the same
+-- rectangles, so both read them from here. All of it is px() and the Code
+-- font's own height, so it scales with the face.
+--
+--   GENERATORS                                          [AUTO [==#]]
+--   START AT 35%   [-][+]      STOP AT 90%                    [-][+]
+--   ----------------------------------------------------------------
+--   LECTROMAX  RUNNING                    3120 W   [AUTO] [ ON/OFF ]
+--   7.5 L +40.0 L  0.21 L/h  226 h  COND 88%       [ ==#] [    ==# ]
+--   ................................................................
+--   VALUTECH  STANDBY                              [AUTO] [ ON/OFF ]
+--   10.0 L +0.0 L  0.00 L/h  -- h  COND 100%       [ ==#] [ #      ]
+--   (two lines and two switches per generator, a fainter rule between
+--    one generator and the next, four generators at most)
+--   ----------------------------------------------------------------
+--   TODAY 4200 Wh  0.9 L
+--
+-- A switch spans both of its generator's lines: its fixed label on top, the
+-- slider under it (knob right on a lit track: ON; knob left: OFF). The
+-- master AUTO is one line high, its slider beside its label. A whole switch
+-- glows while it is ON and dims while it is OFF, and a generator's ON/OFF
+-- is greyed, fainter still, while that generator's own AUTO is on
+-- (genSwitch).
+local GEN = {}
+do
+    local fh = fontH(UIFont.CodeSmall)
+    local x0, y0 = PAD + px(14), MID_Y + px(12)     -- every page's origin
+    local iw = LCD_W - px(28)
+    local boxH = fh + px(2)
+    GEN.x, GEN.iw, GEN.fh = x0, iw, fh
+    GEN.headY = y0
+    GEN.frame = px(2)                               -- a switch's border
+    GEN.master = { x = x0 + iw - px(84), y = y0 - px(1), w = px(84), h = boxH }
+    GEN.levelY = y0 + fh + px(8)
+    local half, bw, gap = math.floor(iw / 2), px(22), px(4)
+    local by = GEN.levelY - px(1)
+    GEN.startMinus = { x = x0 + half - px(8) - 2 * bw - gap, y = by, w = bw, h = boxH }
+    GEN.startPlus = { x = x0 + half - px(8) - bw, y = by, w = bw, h = boxH }
+    GEN.stopX = x0 + half + px(8)
+    GEN.stopMinus = { x = x0 + iw - 2 * bw - gap, y = by, w = bw, h = boxH }
+    GEN.stopPlus = { x = x0 + iw - bw, y = by, w = bw, h = boxH }
+    GEN.ruleY = GEN.levelY + fh + px(4)
+    -- Every rule, the levels' and the ones between generators, has the same
+    -- air each side, so a generator's lines and switches sit between two.
+    local air = px(3)
+    GEN.rowsY = GEN.ruleY + px(1) + air
+    GEN.lineB = fh + px(2)                          -- a row's second line
+    GEN.swH = GEN.lineB + fh                        -- a switch: both lines
+    GEN.rowH = GEN.swH + air + px(1) + air
+    -- Each switch holds the longest label it carries in either language
+    -- inside its frame at the game's own glyph widths (6 px a glyph at the
+    -- base size, 14 at the 4x set). ON/OFF is as wide as the Turkish AC/KAPA
+    -- with its C-cedilla (7 glyphs; ON/OFF is 6). AUTO is px(34), the width
+    -- Can approved in the first round: at px(28) AUTO (4 glyphs; the Turkish
+    -- OTO is 3) filled the frame edge to edge and looked cramped at the 38
+    -- px set; at px(34) it keeps at least half a glyph of air either side.
+    -- The pair is 12 px wider than the AUTO and RUN pair of the first round,
+    -- so the fullest lines lose trailing figures: genLine drops what does
+    -- not fit, and tests/test_machine.py pins exactly which at the base and
+    -- 4x sizes. The switch `run` is the ON/OFF one (it sends bkRun).
+    local autoW, powerW, swGap = px(34), px(46), px(4)
+    GEN.rows = {}
+    for i = 1, 4 do
+        local ry = GEN.rowsY + (i - 1) * GEN.rowH
+        local runX = x0 + iw - powerW
+        local autoX = runX - swGap - autoW
+        GEN.rows[i] = {
+            y = ry,
+            auto = { x = autoX, y = ry, w = autoW, h = GEN.swH },
+            run = { x = runX, y = ry, w = powerW, h = GEN.swH },
+            textR = autoX - px(6),                  -- where its lines end
+            ruleY = ry + GEN.swH + air,             -- the rule under it
+        }
+    end
+    GEN.footY = MID_Y + LCD_H - px(12) - fh
+end
+
+-- A generator's state word (K.unitState, as the server's bkRows carry it)
+-- and the LCD's word for it.
+local GEN_STATE = {
+    running = "IGUI_OffGrid_GenRun", standby = "IGUI_OffGrid_GenStandby",
+    off = "IGUI_OffGrid_GenOff", nofuel = "IGUI_OffGrid_GenNoFuel",
+    fault = "IGUI_OffGrid_GenFault", indoors = "IGUI_OffGrid_GenIndoors",
+    server = "IGUI_OffGrid_GenServer",
+}
+-- The brands' LCD names: the keys OffGrid.Backup.BRANDS[tier].lcd holds,
+-- spelled out here so test_content holds each one to the Code-font list
+-- (test_machine checks the two agree).
+local GEN_BRAND = {
+    valutech = "IGUI_OffGrid_BrandValuTech", old = "IGUI_OffGrid_BrandOld",
+    lectromax = "IGUI_OffGrid_BrandLectromax", premium = "IGUI_OffGrid_BrandPremium",
+}
+
+--- A string cut to a width, so a long translation shortens a label rather
+--  than running out of its box or off the LCD. It cuts whole UTF-8
+--  characters: the Code fonts keep Turkish letters such as C-cedilla, two
+--  bytes each, and half of one draws as '?'.
+local function fit(str, w, font)
+    str = tostring(str)
+    while #str > 0 and textW(str, font) > w do
+        local n = #str
+        while n > 1 and string.byte(str, n) >= 128 and string.byte(str, n) < 192 do
+            n = n - 1
+        end
+        str = string.sub(str, 1, n - 1)
+    end
+    return str
+end
+
+--- Words laid into lines no wider than w (OG_Info's wrap, in an LCD font).
+local function wrap(str, w, font)
+    local out, line = {}, ""
+    for word in string.gmatch(tostring(str or ""), "%S+") do
+        local try = (line == "") and word or (line .. " " .. word)
+        if textW(try, font) > w and line ~= "" then
+            out[#out + 1] = fit(line, w, font)
+            line = word
+        else
+            line = try
+        end
+    end
+    if line ~= "" then out[#out + 1] = fit(line, w, font) end
+    return out
 end
 
 -- The hero figure. CodeLarge is 26 px in the base font set and the approved
@@ -207,6 +351,29 @@ function OG_Window:createChildren()
         b.pageName = PAGES[i]
         self.keyBtns[i] = b
     end
+
+    -- The GEN page's buttons, AFTER the keys so the child indices the panel
+    -- test reads stay put: the master AUTO switch, Start at - and +, Stop at
+    -- - and +, then each generator row's AUTO and ON/OFF switches. Hidden
+    -- until genVisibility finds the GEN page up on a live controller.
+    local function genGhost(r, cmd, dir, row)
+        local b = ghost(r.x, r.y, r.w, r.h, OG_Window.onGenButton)
+        b.genCmd, b.genDir, b.genRow = cmd, dir, row
+        b:setVisible(false)
+        return b
+    end
+    self.genBtns = {
+        genGhost(GEN.master, "bkMaster"),
+        genGhost(GEN.startMinus, "bkLevelStart", -1),
+        genGhost(GEN.startPlus, "bkLevelStart", 1),
+        genGhost(GEN.stopMinus, "bkLevelStop", -1),
+        genGhost(GEN.stopPlus, "bkLevelStop", 1),
+    }
+    for i = 1, #GEN.rows do
+        local g = GEN.rows[i]
+        self.genBtns[#self.genBtns + 1] = genGhost(g.auto, "bkAuto", nil, i)
+        self.genBtns[#self.genBtns + 1] = genGhost(g.run, "bkRun", nil, i)
+    end
 end
 
 function OG_Window:onClose()
@@ -218,9 +385,28 @@ function OG_Window:close()
     OffGrid.Window.current = nil
 end
 
+--- Why this player may not throw the main isolator, or nil: the
+--  controller's pick-up lock (Can, 2026-09-29: "Lock them in 3.0.0"),
+--  OG_Place's G.useRefusal, the question OG_ResetBreaker's completion asks
+--  again on the authority. Nil where OG_Place is not loaded. Reading the
+--  panel asks nothing.
+function OG_Window:rigLock(playerObj)
+    local G = OffGrid.Place
+    if not (playerObj and self.object and G and G.useRefusal) then return nil end
+    return G.useRefusal(playerObj, P.try(self.object, "getSquare"), self.object)
+end
+
+--- The knob. For a player the controller's lock refuses it is drawn greyed
+--  (drawColumn) and does nothing but put the reason above him in the
+--  warning colour: he is not walked over to be refused.
 function OG_Window:onPowerToggle()
     local playerObj = getSpecificPlayer(0)
     if not playerObj or not self.object then return end
+    local why = self:rigLock(playerObj)
+    if why then
+        P.haloNote(playerObj, getText(why), true)
+        return
+    end
     local on = not (self.snap and self.snap.online)
     if OffGrid.Context and OffGrid.Context.onBreaker then
         OffGrid.Context.onBreaker(nil, self.object, playerObj, on)
@@ -229,6 +415,157 @@ end
 
 function OG_Window:onPageKey(button)
     self.page = button.pageName or "status"
+    self:genVisibility()
+end
+
+--- The GEN page's buttons exist only where their switches and boxes are
+--  drawn: on the GEN page of a live controller, and a generator's two
+--  switches only while its row does. Re-applied on every refresh and page
+--  change, so a generator cut away, or a controller switched off, takes its
+--  buttons with it.
+function OG_Window:genVisibility()
+    local btns = self.genBtns
+    if not btns then return end
+    local s = self.snap
+    local up = s ~= nil and s.online == true and (self.page or "status") == "gen"
+    local rows = s and s.bkRows
+    for i = 1, #btns do
+        local b = btns[i]
+        local want = up and (b.genRow == nil
+            or (type(rows) == "table" and rows[b.genRow] ~= nil))
+        want = want == true
+        if b:isVisible() ~= want then b:setVisible(want) end
+    end
+end
+
+-- A switch press in flight. A switch asks for the opposite of what it
+-- shows, and what it shows is the controller's copy, pushed by the server;
+-- a second press before that copy shows the first one's result would ask
+-- for the same thing again, or, on a picture half caught up, the reverse
+-- (live campaign on 42.21, 2026-09-28: a press meant as a start came out as
+-- a stop). So a switch whose press is in flight takes no second one. It is
+-- in flight until GEN shows what it asked for, and at most GEN_HOLD_MS
+-- real milliseconds after the short action carrying it left the player's
+-- queue: long enough for the server's push to arrive, short enough that a
+-- press the server refused (Start on an empty tank, a walk cancelled) does
+-- not hold the switch for long. The level boxes are steps, every press
+-- meant, and are never held.
+OG_Window.GEN_HOLD_MS = 3000
+local GEN_SWITCH = { bkMaster = true, bkAuto = true, bkRun = true }
+
+local function nowMs()
+    return getTimestampMs and getTimestampMs() or 0
+end
+
+--- Whose GEN controls these are (Can, 2026-09-29: "Owner's group only").
+--  The master AUTO and Start at / Stop at are the controller's; a
+--  generator's AUTO and ON/OFF are its own when it stands in memory here,
+--  else its controller's, as the authority asks them (BK.unlocked). The
+--  reason is OG_Backup's K.lockRefusal, or nil; nil too where OG_Backup is
+--  not loaded.
+local function unitAt(r)
+    if type(r) ~= "table" or not getSquare then return nil end
+    local x, y, z = tonumber(r.x), tonumber(r.y), tonumber(r.z)
+    if not (x and y and z) then return nil end
+    return P.objectAt(x, y, z, "backup")
+end
+
+function OG_Window:genLock(playerObj, row)
+    local K = OffGrid.Backup
+    if not (playerObj and self.object and K and K.lockRefusal) then return nil end
+    return K.lockRefusal(playerObj, (row and unitAt(row)) or self.object)
+end
+
+--- Does the snapshot show what a press in flight asked for? A generator
+--  gone from the page has nothing left to hold.
+local function genShows(p, s)
+    if p.cmd == "bkMaster" then return s.bkAuto == p.want end
+    local rows = s.bkRows
+    if type(rows) ~= "table" then return true end
+    for i = 1, #GEN.rows do
+        local r = rows[i]
+        if r == nil then break end
+        if type(r) == "table" and r.k == p.k then
+            if p.cmd == "bkAuto" then return (r.auto == true) == p.want end
+            return (r.s == "running") == p.want
+        end
+    end
+    return true
+end
+
+--- Bring the presses in flight up to date with the snapshot: one GEN now
+--  shows is done; one whose action is still queued is restamped, so its
+--  hold counts from when the action left the queue; one past its hold is
+--  let go. Called on every refresh and before a press is judged.
+function OG_Window:genTrack()
+    local held = self.genHeld
+    local s = self.snap
+    if not held or not s then return end
+    local now = nowMs()
+    local Q = ISTimedActionQueue
+    local done = {}
+    for key, p in pairs(held) do
+        if genShows(p, s) then
+            done[#done + 1] = key
+        elseif p.act ~= nil and Q and Q.hasAction and Q.hasAction(p.act) then
+            p.seen = now
+        elseif now - p.seen >= OG_Window.GEN_HOLD_MS then
+            done[#done + 1] = key
+        end
+    end
+    for i = 1, #done do held[done[i]] = nil end
+end
+
+--- A GEN button: a switch asks for the state opposite the one it shows (the
+--  master and a row's AUTO flip that Auto, ON/OFF starts a stopped
+--  generator and stops a running one), a level box steps its level. Sent
+--  the way the menu sends it (C.onBackupPanel walks the player over and
+--  queues a short action at the controller whose completion sends it), as
+--  the knob goes through onBreaker. An ON/OFF switch drawn greyed, its
+--  generator's own AUTO on, sends nothing: the server would refuse it
+--  (K.handRefusal), so the player is not walked over for a no. Nor does a
+--  switch whose last press is still in flight (genTrack). Nor does any
+--  button the owner's lock refuses this player (genLock, asked now, before
+--  anything else as the authority asks it): it is drawn greyed, and a press
+--  puts the reason above him in the warning colour instead.
+function OG_Window:onGenButton(button)
+    local playerObj = getSpecificPlayer(0)
+    local s = self.snap
+    local C = OffGrid.Context
+    if not playerObj or not self.object or not s or not s.online
+            or not (C and C.onBackupPanel) then
+        return
+    end
+    local cmd, row, value = button.genCmd, nil, nil
+    if button.genRow then
+        row = type(s.bkRows) == "table" and s.bkRows[button.genRow] or nil
+        if not row then return end
+    end
+    local why = self:genLock(playerObj, row)
+    if why then
+        P.haloNote(playerObj, getText(why), true)
+        return
+    end
+    if cmd == "bkMaster" then value = not s.bkAuto
+    elseif cmd == "bkLevelStart" or cmd == "bkLevelStop" then value = button.genDir
+    elseif cmd == "bkAuto" then value = not row.auto
+    elseif cmd == "bkRun" then
+        if row.auto == true then return end        -- greyed (genRow)
+        value = row.s ~= "running"
+    else return end
+    local key = nil
+    if GEN_SWITCH[cmd] then
+        key = cmd .. "|" .. tostring(row and row.k or "")
+        self:genTrack()
+        if self.genHeld and self.genHeld[key] then return end
+    end
+    local act = C.onBackupPanel(playerObj, self.object, cmd,
+                                row and row.x, row and row.y, row and row.z, value)
+    if key then
+        self.genHeld = self.genHeld or {}
+        self.genHeld[key] = { cmd = cmd, k = row and row.k, want = value, act = act,
+                              seen = nowMs() }
+    end
 end
 
 function OG_Window:update()
@@ -281,16 +618,65 @@ function OG_Window:refresh()
         bankCells = d.bankCells,
         dayHist = d.dayHist,
         env = env,
+        -- The backup generators, from the controller's mirror under bk*
+        -- names: gen stays solar watts, and so do SOLAR, PV and DAY.
+        bkW = d.bkW or 0,
+        bkCap = d.bkCap or 0,
+        bkN = d.bkN or 0,
+        bkRows = d.bkRows,
+        bkAuto = d.bkAuto ~= false,
+        bkWhToday = d.bkWhToday or 0,
+        bkFuelToday = d.bkFuelToday or 0,
     }
-    snap.net = snap.gen - snap.load
+    -- The levels as the server last clamped them. Before it has written any
+    -- (nothing cabled yet) the model gives the same answer from the same
+    -- fields, and it gives the ends of both ranges for GEN's - and +.
+    local lvStart, lvStop, lvEff, lvLo, lvHi = M.backupLevels(d.dod or M.DAMAGE_SOC,
+                                                              d.floorSoc, d.bkStart, d.bkStop)
+    snap.bkStart = d.bkStartNow or lvStart
+    snap.bkStop = d.bkStopNow or lvStop
+    snap.bkLo, snap.bkHi = lvLo, lvHi
+    -- Can chose to see where Auto really starts (2026-09-29, "Approved, show
+    -- real start"): M.backupLevels' eff, never under 5 points above the
+    -- cut-off, which rises in the cold. The - and + still step (and dim
+    -- against) the level he set, snap.bkStart.
+    snap.bkStartShown = math.max(snap.bkStart, lvEff)
+    -- What the house nets: the sun and the generators in, the load out.
+    snap.net = snap.gen + snap.bkW - snap.load
     -- Charging is the model's own rule: a surplus, and room in the bank for
     -- it. A full bank clips its surplus and charges nothing.
     snap.charging = snap.net > 0 and (snap.capacity - snap.charge) > 0.01
-    -- The tick's own want-predicate, so STARTING UP is only ever promised
-    -- when the system can actually deliver a start.
+    -- The tick's own want-predicate (holdPower), so STARTING UP is only ever
+    -- promised when the system can actually deliver a start. A running
+    -- generator can start a rig with no cells, so it counts for both.
     snap.starting = snap.online and not snap.powered and not snap.lvd
-        and snap.cells > 0 and (snap.gen > 0 or snap.charge > 0)
+        and (snap.cells > 0 or snap.bkCap > 0)
+        and (snap.gen > 0 or snap.charge > 0 or snap.bkCap > 0)
+    -- How many of its generators GEN shows RUNNING: STATUS reads GEN RUNNING
+    -- while any does, whatever it delivers.
+    snap.bkRunning = 0
+    -- Which of GEN's controls the owner's lock refuses this player (genLock):
+    -- the controller's (lock), and each generator's (bkLocks[i]). Drawn
+    -- greyed; asked again at a press.
+    local who = getSpecificPlayer and getSpecificPlayer(0)
+    -- and whether the controller's lock refuses him the main isolator
+    -- (rigLock; Can, 2026-09-29: "Lock them in 3.0.0"), drawn greyed
+    snap.rigLock = self:rigLock(who) or false
+    snap.lock = self:genLock(who, nil) or false
+    snap.bkLocks = {}
+    if type(snap.bkRows) == "table" then
+        for i = 1, #GEN.rows do
+            local r = snap.bkRows[i]
+            if r == nil then break end
+            if type(r) == "table" and r.s == "running" then
+                snap.bkRunning = snap.bkRunning + 1
+            end
+            if type(r) == "table" then snap.bkLocks[i] = self:genLock(who, r) or false end
+        end
+    end
     self.snap = snap
+    self:genTrack()
+    self:genVisibility()
 end
 
 ------------------------------------------------------------------ the face
@@ -389,6 +775,7 @@ function OG_Window:drawLCD(s)
         if page == "status" then self:pageStatus(s, ix, iy)
         elseif page == "loads" then self:pageLoads(s, ix, iy)
         elseif page == "batt" then self:pageBatt(s, ix, iy)
+        elseif page == "gen" then self:pageGen(s, ix, iy)
         else self:pageDay(s, ix, iy) end
     end
 
@@ -416,6 +803,12 @@ function OG_Window:stateKey(s)
     if not s.online then return "IGUI_OffGrid_Offline" end
     if s.lvd then return "IGUI_OffGrid_LowBatt" end
     if s.starting then return "IGUI_OffGrid_StartingUp" end
+    -- A running generator outranks the sun: it is what the player pays
+    -- petrol for, and gen alone would call a night charge ON BATTERY. Running
+    -- is enough, delivering or not: one idling on a full bank with nothing
+    -- switched on gives 0 W and still burns its idle petrol (live campaign on
+    -- 42.21, 2026-09-28: STATUS said GENERATING while GEN said RUNNING).
+    if (s.bkRunning or 0) > 0 then return "IGUI_OffGrid_GenRunning" end
     if s.gen > 0 then return "IGUI_OffGrid_Generating" end
     return "IGUI_OffGrid_OnBattery"
 end
@@ -713,6 +1106,245 @@ function OG_Window:pageDay(s, x, y)
               "ink", UIFont.CodeSmall, 0.85)
 end
 
+--- GEN: the backup generators this controller runs.
+--
+--  Everything here is the controller's mirror under bk* names, written by
+--  the server every tick; gen stays solar watts. Every switch and box is a
+--  GEN rectangle, so the invisible buttons sit exactly over what is drawn.
+--  A fainter rule parts each generator from the next, so each one's lines
+--  and switches read as one block (Can, 2026-09-28). A figure that does not
+--  fit its line is left off rather than drawn over its neighbour; at the
+--  game's own glyph widths every English figure fits at every font size,
+--  and only the fullest line of all (far, OFF BY SERVER, MIXED FLUID and
+--  HOSE LOST at once) loses its last flag (tests/test_machine.py pins what
+--  each font size leaves off), besides what a long translation loses.
+--  START AT prints where Auto really starts (s.bkStartShown, higher than the
+--  level set in a frost); its - and + step and dim against the level set.
+--  For a player the owner's lock refuses (s.lock, s.bkLocks; Can,
+--  2026-09-29) the master AUTO is drawn greyed and the four level boxes
+--  dimmed, and a generator's two switches greyed (genRow).
+function OG_Window:pageGen(s, x, y)
+    local font = UIFont.CodeSmall
+    local iw = GEN.iw
+    local locked = s.lock ~= nil and s.lock ~= false
+
+    -- the title, and the master AUTO switch where the other pages keep the
+    -- clock
+    self:text(fit(getText("IGUI_OffGrid_GenHeader"), GEN.master.x - x - px(8), font),
+              x, y, "ink", font, 0.85)
+    self:genSwitch(GEN.master, getText("IGUI_OffGrid_GenSwAuto"), s.bkAuto == true, locked)
+
+    -- the two levels, each with its - and +; a box at the end of its range
+    -- is dimmed (the server clamps a press there anyway), and all four while
+    -- the controller's lock refuses this player
+    local start, stop = s.bkStart or 0, s.bkStop or 0
+    local e = 1e-6
+    local function dim(atEnd) return (locked or atEnd) and 0.35 or 1 end
+    self:text(fit(P.txt("IGUI_OffGrid_GenStartAt",
+                        math.floor((s.bkStartShown or start) * 100 + 0.5)),
+                  GEN.startMinus.x - x - px(4), font), x, GEN.levelY, "ink", font)
+    self:genBox(GEN.startMinus, "-", false, dim(start <= (s.bkLo or 0) + e))
+    self:genBox(GEN.startPlus, "+", false, dim(start >= (s.bkHi or 1) - e))
+    self:text(fit(P.txt("IGUI_OffGrid_GenStopAt", math.floor(stop * 100 + 0.5)),
+                  GEN.stopMinus.x - GEN.stopX - px(4), font), GEN.stopX, GEN.levelY,
+              "ink", font)
+    self:genBox(GEN.stopMinus, "-", false, dim(stop <= start + 0.10 + e))
+    self:genBox(GEN.stopPlus, "+", false, dim(stop >= 0.95 - e))
+    self:drawRect(x, GEN.ruleY, iw, px(1), 0.35, c("ink"))
+
+    local rows = s.bkRows
+    if type(rows) == "table" and rows[1] ~= nil then
+        local locks = type(s.bkLocks) == "table" and s.bkLocks or {}
+        for i = 1, #GEN.rows do
+            if rows[i] == nil then break end
+            if i > 1 then
+                self:drawRect(x, GEN.rows[i - 1].ruleY, iw, px(1), 0.22, c("ink"))
+            end
+            self:genRow(rows[i], GEN.rows[i], x, locks[i] ~= nil and locks[i] ~= false)
+        end
+    else
+        -- Nothing cabled yet: say so, and how, where the rows would be.
+        local ly = GEN.rowsY
+        self:text(fit(getText("IGUI_OffGrid_GenNone"), iw, font), x, ly, "ink", font, 0.9)
+        ly = ly + GEN.fh + px(6)
+        local lines = wrap(getText("IGUI_OffGrid_GenHowTo"), iw, font)
+        for i = 1, #lines do
+            if ly + GEN.fh > GEN.footY - px(4) then break end
+            self:text(lines[i], x, ly, "ink", font, 0.7)
+            ly = ly + GEN.fh + px(3)
+        end
+    end
+
+    -- today: what the generators gave and burned since midnight
+    self:drawRect(x, GEN.footY - px(3), iw, px(1), 0.35, c("ink"))
+    self:text(fit(P.txt("IGUI_OffGrid_GenToday", fmtWh(s.bkWhToday or 0),
+                        string.format("%.1f", s.bkFuelToday or 0)), iw, font),
+              x, GEN.footY, "ink", font, 0.85)
+end
+
+--- One generator's block. Line one: brand, state, FAR while its area is not
+--  loaded, and what it delivers while it runs. Line two: tank + barrels,
+--  burn, hours left, condition. Both lines end before its two switches,
+--  which stand side by side at the right end and span both lines: AUTO, ON
+--  while this generator's own Auto is, and ON/OFF, ON while it runs. Their
+--  labels never change; the sliders show the state. While its AUTO is on,
+--  the ON/OFF switch is greyed and its button does nothing (Can,
+--  2026-09-28: "when AUTO is active for a generator, it should disable
+--  (greyed out) ON/OFF button until AUTO is disabled for that generator");
+--  its slider still shows whether it runs. MIXED FLUID is a barrel skipped
+--  for holding a mix, HOSE LOST a barrel dropped this session (gone, moved
+--  or out of reach). `locked`: the owner's lock refuses this player the
+--  generator's controls, and both switches are greyed (Can, 2026-09-29).
+function OG_Window:genRow(r, g, x, locked)
+    local font = UIFont.CodeSmall
+    local right = g.textR
+    local gap = px(8)
+    local running = r.s == "running"
+
+    local brand = GEN_BRAND[r.t] and getText(GEN_BRAND[r.t])
+        or string.upper(tostring(r.t or "?"))
+    local one = { { brand, 1 },
+                  { getText(GEN_STATE[r.s] or "IGUI_OffGrid_GenOff"), 0.85 } }
+    if r.far then one[#one + 1] = { getText("IGUI_OffGrid_GenFar"), 0.6 } end
+    if r.mix then one[#one + 1] = { getText("IGUI_OffGrid_GenMix"), 0.6 } end
+    if (r.lost or 0) > 0 then one[#one + 1] = { getText("IGUI_OffGrid_GenLost"), 0.6 } end
+    local cx = self:genLine(one, x, g.y, right, gap)
+    if running then
+        local w = fmtW(r.w or 0)
+        if cx + gap + textW(w, font) <= right then
+            self:textRight(w, right, g.y, "ink", font)
+        end
+    end
+    self:genSwitch(g.auto, getText("IGUI_OffGrid_GenSwAuto"), r.auto == true, locked == true)
+
+    local tank = P.txt("IGUI_OffGrid_GenTank", string.format("%.1f", r.tank or 0),
+                       string.format("%.1f", r.feed or 0))
+    local hours = r.left or -1
+    local left = "--"
+    if hours >= 10 then left = string.format("%d", math.floor(hours + 0.5))
+    elseif hours >= 0 then left = string.format("%.1f", hours) end
+    self:genLine({
+        { tank, 1 },
+        { P.txt("IGUI_OffGrid_GenBurn", string.format("%.2f", r.burn or 0)), 0.8 },
+        { P.txt("IGUI_OffGrid_GenLeft", left), 0.8 },
+        { P.txt("IGUI_OffGrid_GenCond", math.floor((r.cond or 0) + 0.5)), 0.8 },
+    }, x, g.y + GEN.lineB, right, gap)
+    self:genSwitch(g.run, getText("IGUI_OffGrid_GenSwPower"), running,
+                   r.auto == true or locked == true)
+end
+
+--- Pieces of one LCD line, left to right with a gap, as many as fit before
+--  `right`; the first is cut to fit rather than left off, so a line is
+--  never empty. Returns where the last one drawn ends.
+function OG_Window:genLine(parts, x, y, right, gap)
+    local font = UIFont.CodeSmall
+    local cx = x
+    for i = 1, #parts do
+        local str, a = parts[i][1], parts[i][2]
+        local lead = (i == 1) and 0 or gap
+        local w = textW(str, font)
+        if i == 1 and w > right - cx then
+            str = fit(str, right - cx, font)
+            w = textW(str, font)
+        elseif cx + lead + w > right then
+            break
+        end
+        self:text(str, cx + lead, y, "ink", font, a)
+        cx = cx + lead + w
+    end
+    return cx
+end
+
+--- One of the GEN page's level buttons, - or +: an ink outline, filled
+--  while it is lit, its label centred and cut to fit. The rectangle is the
+--  one its invisible button was made with, so the click lands where the box
+--  is.
+function OG_Window:genBox(r, label, lit, alpha)
+    local a = alpha or 1
+    local font = UIFont.CodeSmall
+    if lit then self:drawRect(r.x, r.y, r.w, r.h, 0.85 * a, c("ink")) end
+    self:drawRectBorder(r.x, r.y, r.w, r.h, 0.6 * a, c("ink"))
+    self:textCentre(fit(label, r.w - px(6), font), r.x + r.w / 2,
+                    r.y + math.floor((r.h - GEN.fh) / 2),
+                    lit and "lcd" or "ink", font, a)
+end
+
+-- A switch's three looks, each part an alpha of the LCD's ink. Can,
+-- 2026-09-28: "when a toggle is off, the canvas of that toggle should also
+-- dim. when it's on, the canvas of that button should also glow (like how it
+-- is right now.)" ON is the look every switch had before: it glows. OFF dims
+-- the whole switch, frame, fill, label and slider, and stays plain to read
+-- and to press. Greyed, a generator's ON/OFF while its own AUTO is on, is
+-- fainter again in every part, and its button does nothing. Each part is
+-- under four fifths of the look above it (tests/test_machine.py), so the
+-- three read apart at a glance.
+local SWITCH_LOOK = {
+    on     = { fill = 0.14, frame = 0.9,  label = 1,   track = 1,    glow = 0.45, knob = 1 },
+    off    = { fill = 0.07, frame = 0.5,  label = 0.6, track = 0.4,  glow = 0,    knob = 0.6 },
+    greyed = { fill = 0.03, frame = 0.22, label = 0.3, track = 0.18, glow = 0.12, knob = 0.3 },
+}
+
+--- One of the GEN page's switches, the master AUTO or a generator's AUTO or
+--  ON/OFF. Can, 2026-09-28: "They should work like switches. And we need to
+--  make them more obvious." So a switch reads as a thing to press, set apart
+--  from the LCD's text by a heavy frame (GEN.frame, 2 px at the base size)
+--  and a faint fill; its label names it and never changes; its slider says
+--  the state: OFF is a dark track with the knob at the left, ON a glowing
+--  track with the knob at the right. The knob is the brightest thing in
+--  the track either way, so the eye follows it from side to side: a first
+--  draft with a dark knob on the lit track read as the same picture as a lit
+--  knob on the dark one, bright left and dark right. The whole switch takes
+--  the look of its state (SWITCH_LOOK), or the greyed one when `greyed`: its
+--  slider still shows `on`, a faint glow and the knob at the right while
+--  the generator runs. A two-line switch has the slider under the label,
+--  the one-line master beside it. The rectangle is the one its invisible
+--  button was made with, so the click lands on the switch.
+function OG_Window:genSwitch(r, label, on, greyed)
+    local font = UIFont.CodeSmall
+    local fh, bw = GEN.fh, GEN.frame
+    local look = SWITCH_LOOK[greyed and "greyed" or (on and "on" or "off")]
+    self:drawRect(r.x, r.y, r.w, r.h, look.fill, c("ink"))
+    for i = 0, bw - 1 do
+        self:drawRectBorder(r.x + i, r.y + i, r.w - 2 * i, r.h - 2 * i, look.frame, c("ink"))
+    end
+    local tx, ty, tw, th
+    if r.h >= 2 * fh then
+        -- the label on top, the slider under it, the spare height shared
+        th = math.max(px(6), fh - px(6))
+        local spare = math.max(0, r.h - 2 * bw - fh - th)
+        local ly = r.y + bw + math.floor(spare / 3)
+        self:textCentre(fit(label, r.w - 2 * bw, font), r.x + r.w / 2, ly,
+                        "ink", font, look.label)
+        tx, tw = r.x + bw + px(3), r.w - 2 * bw - 2 * px(3)
+        ty = ly + fh + math.floor(spare / 3)
+    else
+        -- one line: the label on the left, the slider on the right
+        tw = px(30)
+        th = math.max(px(4), r.h - 2 * bw - 2 * px(2))
+        tx = r.x + r.w - bw - px(4) - tw
+        ty = r.y + math.floor((r.h - th) / 2)
+        local lw = tx - px(2) - (r.x + bw)
+        self:textCentre(fit(label, lw, font), r.x + bw + lw / 2,
+                        r.y + math.floor((r.h - fh) / 2), "ink", font, look.label)
+    end
+    local inset = px(1)
+    local kw = math.max(px(4), math.floor((tw - 2 * inset) * 0.4))
+    local kh = th - 2 * inset
+    self:drawRect(tx, ty, tw, th, 1, c("lcd"))
+    self:drawRectBorder(tx, ty, tw, th, look.track, c("ink"))
+    if on then
+        -- the glow, parted from the knob by a dark gap so the knob stands out
+        local kx = tx + tw - inset - kw
+        if look.glow > 0 then
+            self:drawRect(tx + inset, ty + inset, kx - px(1) - tx - inset, kh,
+                          look.glow, c("ink"))
+        end
+        self:drawRect(kx, ty + inset, kw, kh, look.knob, c("ink"))
+    else
+        self:drawRect(tx + inset, ty + inset, kw, kh, look.knob, c("ink"))
+    end
+end
+
 ------------------------------------------------------------------ the keys
 
 function OG_Window:drawKeys(s)
@@ -735,13 +1367,17 @@ end
 --------------------------------------------------------------- the column
 
 function OG_Window:drawColumn(s)
-    -- the isolator plate: one baked frame per state
+    -- the isolator plate: one baked frame per state; faint, still showing
+    -- the state, for a player the controller's lock refuses (s.rigLock),
+    -- whose press only says why (onPowerToggle)
+    local inert = s.rigLock ~= nil and s.rigLock ~= false
+    local a = inert and 0.35 or 1
     local t = tex(s.online and "plate_on.png" or "plate_off.png")
     if t then
-        self:drawTextureScaled(t, COLX, MID_Y, COL_W, px(112), 1, 1, 1, 1)
+        self:drawTextureScaled(t, COLX, MID_Y, COL_W, px(112), a, 1, 1, 1)
     end
     self:textCentre(getText("IGUI_OffGrid_Isolator"), COLX + COL_W / 2,
-                    MID_Y + px(114), "dim", UIFont.NewSmall)
+                    MID_Y + px(114), "dim", UIFont.NewSmall, inert and 0.45 or 1)
 
     -- the trip lamp: a square window, like the approved face
     local ty = MID_Y + px(132)

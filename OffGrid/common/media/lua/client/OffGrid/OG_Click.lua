@@ -79,9 +79,12 @@ function OffGrid.Click.onObjectUp(object, x, y)
     if not kind then return end
     if not inReach(playerObj, object) then return end
 
+    -- A controller tile painted with the Brush Tool is scenery: no monitor
+    -- (its right-click rows say why, greyed; P.isPainted).
     if kind == "bank" and OffGrid.Bank and OffGrid.Bank.open then
         OffGrid.Bank.open(playerObj, object)
-    elseif kind == "controller" and OffGrid.Window and OffGrid.Window.open then
+    elseif kind == "controller" and not P.isPainted(object)
+            and OffGrid.Window and OffGrid.Window.open then
         OffGrid.Window.open(playerObj, object)
     end
 end

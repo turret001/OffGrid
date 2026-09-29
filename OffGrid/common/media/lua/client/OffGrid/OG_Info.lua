@@ -22,6 +22,7 @@
 
 require "ISUI/ISCollapsableWindow"
 require "OffGrid/OG_Context"
+require "OffGrid/OG_Backup"
 
 OffGrid = OffGrid or {}
 OffGrid.Info = OffGrid.Info or {}
@@ -114,6 +115,34 @@ local function describeText(info)
     local txt = getText("Tooltip_" .. short)
     if txt == "Tooltip_" .. short then return nil end
     return txt
+end
+
+--- A backup generator's state word (OG_Backup's K.unitState) in the player's
+--  words, and the colour its row takes. Full keys, one per word, so
+--  tests/test_content.py sees every one of them.
+local BACKUP_STATE = {
+    running = { key = "IGUI_OffGrid_BkStRunning", col = "good" },
+    standby = { key = "IGUI_OffGrid_BkStStandby" },
+    off     = { key = "IGUI_OffGrid_BkStOff", col = "dim" },
+    nofuel  = { key = "IGUI_OffGrid_BkStNoFuel", col = "bad" },
+    fault   = { key = "IGUI_OffGrid_BkStFault", col = "bad" },
+    indoors = { key = "IGUI_OffGrid_BkStIndoors", col = "bad" },
+    server  = { key = "IGUI_OffGrid_BkStServer", col = "warn" },
+}
+
+--- A backup generator's line in its controller's GEN mirror (bkRows, which
+--  the authority rewrites on every tick and syncs with the controller), or
+--  nil: no live link, or no tick yet since the cable went on.
+local function backupRow(cd, obj)
+    local rows = cd and cd.bkRows
+    local sq = obj:getSquare()
+    if type(rows) ~= "table" or not sq then return nil end
+    local key = M.nodeKey(sq:getX(), sq:getY(), sq:getZ(), "backup")
+    for i = 1, #rows do
+        local r = rows[i]
+        if type(r) == "table" and r.k == key then return r end
+    end
+    return nil
 end
 
 --- Label and value rows for whatever this thing is.
@@ -241,6 +270,13 @@ local function specRows(obj, info, d)
         end
         add(getText("IGUI_OffGrid_InfoBanks"),
             P.count("IGUI_OffGrid_BankLine", d.bankCount or 0))
+        -- Its backup generators, counted by the controller on every tick (a
+        -- unit whose area is not loaded included). Only while it has one: the
+        -- GEN page says the rest, and how to connect the first.
+        local bkN = math.floor(tonumber(d.bkN) or 0)
+        if bkN > 0 then
+            add(getText("IGUI_OffGrid_InfoBackups"), tostring(bkN))
+        end
         -- What the system reaches beyond the controller's own circle: its
         -- transformers and the buildings wired to it (OG_Distrib writes both).
         if (d.xfmrCount or 0) > 0 then
@@ -275,6 +311,68 @@ local function specRows(obj, info, d)
         local Bd = OffGrid.Buildings
         local n = Bd and #Bd.decodeTargets(d.bw) or 0
         add(getText("IGUI_OffGrid_InfoBuildings"), tostring(n))
+
+    elseif info.kind == "backup" and OffGrid.Backup then
+        -- A converted generator (OG_Backup). Its own ModData holds the tank,
+        -- the condition and its AUTO switch; how fast it burns is its
+        -- controller's to say, from the row the authority writes for it on
+        -- every tick, so this card and the GEN page print one figure.
+        local K = OffGrid.Backup
+        local ctrl = d.sys and K.linkedController(obj) or nil
+        local cd = ctrl and P.data(ctrl) or nil
+        -- STANDBY needs the controller's Auto on as well as the unit's own. A
+        -- unit with no live link cannot be started by anyone, so it reads OFF
+        -- (the wiring card below says why).
+        local masterOn = cd ~= nil and cd.bkAuto ~= false
+        -- The barrels: how many, and the pure petrol still in them, which is
+        -- what the top-up can draw. The world is asked only when a hose leads
+        -- somewhere. They count with the tank for No fuel, as on GEN.
+        local nFeeds = type(d.feeds) == "string" and #K.decodeFeeds(d.feeds) or 0
+        local feedL = 0
+        if nFeeds > 0 then
+            local _, n = K.totalFuel(obj)
+            feedL = tonumber(n) or 0
+        end
+        local word = K.unitState(d, masterOn, feedL)
+        local st = BACKUP_STATE[word] or BACKUP_STATE.off
+        add(getText("IGUI_OffGrid_InfoState"), getText(st.key), st.col)
+        local brand = K.BRANDS[info.tier]
+        if brand then
+            add(getText("IGUI_OffGrid_InfoRating"),
+                string.format("%d W", math.floor(brand.rating + 0.5)))
+        end
+        local fuel = tonumber(d.fuel) or 0
+        add(getText("IGUI_OffGrid_InfoTank"),
+            string.format("%.1f / %d L", fuel, math.floor(K.TANK)),
+            fuel <= 0 and "bad" or nil)
+        -- Amber while the top-up skips a barrel that holds a mix.
+        local row = backupRow(cd, obj)
+        if nFeeds > 0 then
+            add(getText("IGUI_OffGrid_InfoFeeds"),
+                P.txt("IGUI_OffGrid_InfoFeedsValue", nFeeds,
+                      string.format("%.1f", tonumber(feedL) or 0)),
+                row and row.mix and "warn" or nil)
+        else
+            add(getText("IGUI_OffGrid_InfoFeeds"), "0", "dim")
+        end
+        -- Nothing while stopped; unknown ("--") in the moment between a start
+        -- and the controller's next tick.
+        local burn = 0
+        if word == "running" then burn = row and tonumber(row.burn) or nil end
+        add(getText("IGUI_OffGrid_InfoBurn"),
+            burn and string.format("%.2f L/h", burn) or "--",
+            (burn or 0) <= 0 and "dim" or nil)
+        local auto = d.auto ~= false
+        add(getText("IGUI_OffGrid_InfoAuto"),
+            getText(auto and "IGUI_OffGrid_InfoAutoOn" or "IGUI_OffGrid_InfoAutoOff"),
+            (not auto) and "dim" or nil)
+        -- Amber from where it starts to backfire (K.BACKFIRE's top tier, 40),
+        -- red once it has worn out and stopped with FAULT.
+        local cond = tonumber(d.condition) or 100
+        local tiers = K.BACKFIRE
+        local rough = tiers and tiers[#tiers] and tiers[#tiers][1] or 40
+        add(getText("IGUI_OffGrid_InfoCondition"), pct(cond / 100),
+            cond <= 0 and "bad" or (cond <= rough and "warn" or nil))
     end
 
     return rows

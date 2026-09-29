@@ -25,6 +25,11 @@ local C = OffGrid.Context
 local P = OffGrid.Parts
 local M = OffGrid.Model
 
+--- OG_Backup, looked up when asked, as OG_Buildings is just below: the
+--  harnesses that load this file without it (the picker, most of the client
+--  checks) keep loading, and no backup generator can exist there.
+local function K() return OffGrid.Backup end
+
 --- How many buildings a part wires. OG_Buildings is looked up when asked, not
 --  held from file load, so a harness or a load order that brings this file in
 --  without it reads "none" instead of failing the whole menu.
@@ -51,7 +56,7 @@ C.ICON_GROUP = {
     off   = { r = 226 / 255, g = 75 / 255, b = 74 / 255 },     -- switch off
     cable = { r = 240 / 255, g = 153 / 255, b = 123 / 255 },   -- cables
     care  = { r = 175 / 255, g = 169 / 255, b = 236 / 255 },   -- snow, cleaning, repair
-    take  = { r = 180 / 255, g = 178 / 255, b = 169 / 255 },   -- Take down
+    take  = { r = 180 / 255, g = 178 / 255, b = 169 / 255 },   -- Pick up
 }
 C.ICON_DIM = { r = 111 / 255, g = 110 / 255, b = 105 / 255 }
 
@@ -81,6 +86,17 @@ C.ROW_ICONS = {
     repair          = { "tool", "care" },
     clean           = { "droplet", "care" },
     takeDown        = { "hand-grab", "take" },
+    -- The backup generator's rows (2026-09-27), from pictures already here.
+    bkConvert       = { "plug-connected", "power" },
+    bkRestore       = { "refresh", "take" },
+    bkStart         = { "power", "power" },
+    bkStop          = { "power", "off" },
+    bkAuto          = { "refresh", "power" },
+    bkMaster        = { "refresh", "power" },
+    bkRefuel        = { "droplet", "care" },
+    bkRepair        = { "tool", "care" },
+    bkFeed          = { "plug", "cable" },
+    bkFeedCut       = { "plug-x", "cable" },
 }
 
 --- The drawn size for a menu: the smallest at least as tall as its icon
@@ -109,10 +125,12 @@ end
 
 --- Give a menu row its icon: `row` a key of C.ROW_ICONS. Returns the row,
 --  so it can wrap addOption. A picture the game cannot find leaves the row as
---  it was.
+--  it was. The row keeps its key (ogRow), which is how a painted controller
+--  tells its rows apart (paintScenery).
 function C.icon(option, menu, row)
     local spec = C.ROW_ICONS[row]
     if type(option) ~= "table" or not spec then return option end
+    option.ogRow = row
     local tex = iconTexture(spec[1], C.iconSize(menu))
     if not tex then return option end
     option.iconTexture = tex
@@ -202,6 +220,13 @@ local function predicateScrews(item)
     return item ~= nil and item:getFullType() == "Base.Screws"
 end
 
+-- A petrol container by vanilla's own test (ISWorldObjectContextMenu.lua,
+-- predicatePetrol): any fluid container holding petrol, a sip of it at least.
+local function predicatePetrol(item)
+    local fc = item and item:getFluidContainer()
+    return fc ~= nil and fc:contains(Fluid.Petrol) and fc:getAmount() >= 0.099
+end
+
 --- A screwdriver, by tag, so a modded one works.
 --  Shared with the pickup gate: see P.hasScrewdriver for why this is one
 --  function and not two.
@@ -243,6 +268,101 @@ local function liveSys(d)
     if sq and not P.objectAt(cx, cy, cz, "controller") then return nil end
     return sys
 end
+
+--- How many backup generators a controller's wire already carries, leaving
+--  out `except` (the node key of the unit being cabled): the count S.connect
+--  makes on the same string with the source's own edges dropped, so a unit
+--  cabled again is not its own fifth. The menu only greys the row; the server
+--  is the gate.
+local function backupLeaves(wire, except)
+    local edges = M.wireParse(M.wireDrop(wire or "", except or ""))
+    local seen, n = {}, 0
+    for i = 1, #edges do
+        local ends = { edges[i].a, edges[i].b }
+        for j = 1, 2 do
+            local node = ends[j]
+            if not seen[node] then
+                seen[node] = true
+                local _, _, _, kind = M.parseNodeKey(node)
+                if kind == "backup" then n = n + 1 end
+            end
+        end
+    end
+    return n
+end
+
+--- Grey a row with a refusal key; nil leaves it usable. A row that opens a
+--  submenu of our own (ogSub) greys that submenu's rows too: vanilla's menu
+--  still opens the submenu of a greyed row.
+local function greyed(opt, key)
+    if key and opt then
+        opt.notAvailable = true
+        opt.toolTip = C.tip(getText(key))
+        local sub = opt.ogSub
+        if type(sub) == "table" and type(sub.options) == "table" then
+            for _, o in ipairs(sub.options) do greyed(o, key) end
+        end
+    end
+    return opt
+end
+
+--- Why this player may not use `obj`'s controls, or nil: a backup's AUTO,
+--  ON/OFF, Start and Stop, its fuel barrels and its cable, a controller's
+--  Generator Auto (Can, 2026-09-29: "Owner's group only"); and since "Lock
+--  them in 3.0.0" the rig's own: a controller's Switch on / Switch off,
+--  Reset the breaker and Equalise, Run cable from here, Connect and Cut a
+--  cable on any part (each part whose wiring changes), and Wire up the
+--  building, Choose buildings and Unwire. OG_Place's G.useRefusal, the
+--  question the authority asks again first (G.mayUse; OG_Backup's
+--  K.lockRefusal asks the same). Nil where OG_Place is not loaded.
+local function lockOf(playerObj, obj)
+    local G = OffGrid.Place
+    if not (G and G.useRefusal and obj and playerObj) then return nil end
+    return G.useRefusal(playerObj, P.try(obj, "getSquare"), obj)
+end
+C.lockOf = lockOf
+
+--- A press that reached its handler although the row was greyed (the
+--  monitor's knob, a menu built before the lock changed): the first of
+--  `...` whose lock refuses this player puts the reason above him in the
+--  warning colour, and the caller sends nothing. True when refused.
+local function refusedPress(playerObj, ...)
+    for i = 1, select("#", ...) do
+        local why = lockOf(playerObj, (select(i, ...)))
+        if why then
+            P.haloNote(playerObj, getText(why), true)
+            return true
+        end
+    end
+    return false
+end
+C.refusedPress = refusedPress
+
+-- The rows a controller painted with the Brush Tool keeps usable: the
+-- almanac's two, which are the player's own, the Convert row of a generator
+-- standing on the tile, and Pick up.
+local SCENERY_KEEP = { almanac = true, readSky = true, bkConvert = true, takeDown = true }
+
+--- A controller tile the Brush Tool painted (P.isPainted) is scenery (Can,
+--  2026-09-29: "Say it's scenery"): every row of ours that cannot work on it
+--  stays on the menu, greyed with why, never hidden.
+local function paintScenery(menu)
+    local opts = menu and menu.options
+    if type(opts) ~= "table" then return end
+    for _, o in ipairs(opts) do
+        if o.ogRow and not SCENERY_KEEP[o.ogRow] then
+            greyed(o, "Tooltip_OffGrid_Painted")
+        end
+    end
+end
+
+-- A backup's state word (OG_Backup's K.unitState) as its status line says it.
+local BK_STATE_TEXT = {
+    running = "IGUI_OffGrid_BkStRunning", standby = "IGUI_OffGrid_BkStStandby",
+    off = "IGUI_OffGrid_BkStOff", nofuel = "IGUI_OffGrid_BkStNoFuel",
+    fault = "IGUI_OffGrid_BkStFault", indoors = "IGUI_OffGrid_BkStIndoors",
+    server = "IGUI_OffGrid_BkStServer",
+}
 
 --- One line of status for the tooltip, so the common case needs no window.
 local function statusText(obj, part)
@@ -298,6 +418,30 @@ local function statusText(obj, part)
         local n = wiredCount(d)
         if n > 0 then bits[#bits + 1] = P.txt("IGUI_OffGrid_BuildingsWired", n) end
         return table.concat(bits, "   ")
+    elseif part == "backup" then
+        -- "Running · fuel 62% · condition 88%": the state its GEN row shows,
+        -- read against the master switch of the controller it is cabled to.
+        -- Cabled to none, nothing can start it, so a stopped unit reads Off.
+        -- Its barrels count with its tank for No fuel, as they do on GEN;
+        -- the world is asked only when a hose leads somewhere.
+        local k = K()
+        if not k then return nil end
+        local ctrl = k.linkedController(obj)
+        local masterOn = ctrl ~= nil and P.data(ctrl).bkAuto ~= false
+        local feedL = 0
+        if type(d.feeds) == "string" and d.feeds ~= "" then
+            local _, n = k.totalFuel(obj)
+            feedL = tonumber(n) or 0
+        end
+        local word = k.unitState(d, masterOn, feedL)
+        local fuel = M.clamp((d.fuel or 0) / k.TANK, 0, 1)
+        local line = P.txt("IGUI_OffGrid_BkStatus",
+                           getText(BK_STATE_TEXT[word] or "IGUI_OffGrid_BkStOff"),
+                           math.floor(fuel * 100 + 0.5), math.floor(d.condition or 100))
+        if loose then
+            return getText("IGUI_OffGrid_NotWired") .. "   " .. line
+        end
+        return line
     end
     return nil
 end
@@ -327,6 +471,34 @@ local function stripGeneratorMenu(context, test)
     end
 end
 
+--- The generator vanilla built its Generator menu for, when it is a native
+--  one (a controller is an IsoGenerator too, and is never converted) and
+--  conversion is loaded at all: the one Convert to Off-Grid backup is for.
+--  Keyed on fetchVars for the reason stripGeneratorMenu is: the fetch walks
+--  every object on the clicked square, so a click on the floor it stands on,
+--  or on a part sharing its square, still means that generator.
+local function nativeGenerator()
+    if not K() then return nil end
+    local fv = ISWorldObjectContextMenu and ISWorldObjectContextMenu.fetchVars
+    local g = fv and fv.generator
+    if not g or P.partOf(g) then return nil end
+    if not (instanceof and instanceof(g, "IsoGenerator")) then return nil end
+    return g
+end
+
+--- The backup generator standing on `gen`'s square, or nil: what a normal
+--  generator set down there covers (C.onFill).
+function C.backupUnder(gen)
+    local sq = gen and P.try(gen, "getSquare")
+    local objs = sq and sq:getObjects()
+    if not objs then return nil end
+    for i = 0, objs:size() - 1 do
+        local o = objs:get(i)
+        if o and o ~= gen and P.partOf(o) == "backup" then return o end
+    end
+    return nil
+end
+
 --- Strip vanilla's Remove Battery when the light it was built for is one of
 --  the solar lamps, whose battery is built in. Keyed on the light switch the
 --  menu was actually BUILT for, as stripGeneratorMenu is on the generator:
@@ -348,7 +520,9 @@ end
 --  light. This adds one line saying how charged it is and what it will do.
 --  Vanilla's Remove Battery goes in stripLampBattery, keyed on the light the
 --  rows were built for: removed here by its label, it took the row of another
---  battery lamp vanilla had fetched instead (review, 2026-09-26).
+--  battery lamp vanilla had fetched instead (review, 2026-09-26). Returns the
+--  submenu, so a generator standing on the lamp's square can add its Convert
+--  row to it.
 function C.lampMenu(context, worldobjects, target)
     local sub = C.icon(context:addOption(getText("ContextMenu_OffGrid"), worldobjects, nil),
                        context, "offgrid")
@@ -356,7 +530,7 @@ function C.lampMenu(context, worldobjects, target)
     context:addSubMenu(sub, menu)
     local line = menu:addOption(OffGrid.Lamps.status(target), nil, nil)
     line.notAvailable = true
-    return true
+    return menu
 end
 
 function C.onFill(playerNum, context, worldobjects, test)
@@ -370,10 +544,38 @@ function C.onFill(playerNum, context, worldobjects, test)
         local p = P.partOf(o)
         if p then target, part = o, p break end
     end
-    if not target then return end
+    -- A native generator vanilla built its menu for gets Convert to Off-Grid
+    -- backup: under an Off-Grid option of its own when no part was clicked,
+    -- or in the clicked part's submenu when one was. A backup already on the
+    -- generator's square is what the loop above finds first, and "There is
+    -- already a backup generator here" must still be shown, not hidden.
+    local gen = nativeGenerator()
+    -- A normal generator set down on a backup's square (Can, 2026-09-29:
+    -- "Fix it"). A right-click there hits the generator, the one object the
+    -- pick hands over (ISObjectClickHandler.doRClick), and the backup under
+    -- it stayed out of reach until the generator was moved. So the square
+    -- vanilla fetched the generator on is searched for a backup, which gets
+    -- its menu with the generator's Convert row in it, as any part standing
+    -- there does: one Off-Grid option, beside vanilla's own Generator menu.
+    if not target and gen then
+        target = C.backupUnder(gen)
+        if target then part = "backup" end
+    end
+    if not target then
+        if not gen then return end
+        if test then return true end
+        return C.convertMenu(context, worldobjects, gen, playerObj)
+    end
     if test then return true end
 
-    if part == "lamp" then return C.lampMenu(context, worldobjects, target) end
+    if part == "lamp" then
+        local lamp = C.lampMenu(context, worldobjects, target)
+        if gen then
+            C.convertRow(lamp, worldobjects, gen, playerObj)
+            C.dimUnavailable(lamp)
+        end
+        return true
+    end
 
     local sub = C.icon(context:addOption(getText("ContextMenu_OffGrid"), worldobjects, nil),
                        context, "offgrid")
@@ -385,6 +587,7 @@ function C.onFill(playerNum, context, worldobjects, test)
         local line = menu:addOption(status, nil, nil)
         line.notAvailable = true
     end
+    if gen then C.convertRow(menu, worldobjects, gen, playerObj) end
 
     C.icon(menu:addOption(getText("ContextMenu_OffGrid_Info"), worldobjects,
                           C.onInfo, target, playerObj), menu, "info")
@@ -417,15 +620,37 @@ function C.onFill(playerNum, context, worldobjects, test)
         C.coverageMenu(menu, target, playerObj)
         C.buildingMenu(menu, worldobjects, target, playerObj, part)
         local d = P.data(target)
+        -- The switch is the controller's owner's group's (Can, 2026-09-29:
+        -- "Lock them in 3.0.0"): greyed with the lock's reason for anyone
+        -- else, never hidden, as OG_ResetBreaker's completion refuses it.
+        local lock = lockOf(playerObj, target)
+        local sw
         if d.trip then
-            C.icon(menu:addOption(getText("ContextMenu_OffGrid_Reset"), worldobjects,
-                                  C.onBreaker, target, playerObj, true), menu, "reset")
+            sw = C.icon(menu:addOption(getText("ContextMenu_OffGrid_Reset"), worldobjects,
+                                       C.onBreaker, target, playerObj, true), menu, "reset")
         elseif d.online then
-            C.icon(menu:addOption(getText("ContextMenu_OffGrid_SwitchOff"), worldobjects,
-                                  C.onBreaker, target, playerObj, false), menu, "switchOff")
+            sw = C.icon(menu:addOption(getText("ContextMenu_OffGrid_SwitchOff"), worldobjects,
+                                       C.onBreaker, target, playerObj, false), menu, "switchOff")
         else
-            C.icon(menu:addOption(getText("ContextMenu_OffGrid_SwitchOn"), worldobjects,
-                                  C.onBreaker, target, playerObj, true), menu, "switchOn")
+            sw = C.icon(menu:addOption(getText("ContextMenu_OffGrid_SwitchOn"), worldobjects,
+                                       C.onBreaker, target, playerObj, true), menu, "switchOn")
+        end
+        greyed(sw, lock)
+
+        -- Generator Auto: the master switch over the backup generators cabled
+        -- here. Only once one is; with none it would have nothing to start.
+        local csq = target:getSquare()
+        if K() and csq and backupLeaves(d.wire) > 0 then
+            local on = d.bkAuto ~= false
+            local master = C.icon(menu:addOption(getText(on and "ContextMenu_OffGrid_BkMasterOff"
+                                                              or "ContextMenu_OffGrid_BkMasterOn"),
+                                                 worldobjects, C.onBackupRow, playerObj, target,
+                                                 "bkMaster", csq:getX(), csq:getY(), csq:getZ(),
+                                                 not on),
+                                  menu, "bkMaster")
+            master.toolTip = C.tip(getText("Tooltip_OffGrid_BkMaster"))
+            -- the controller's owner's group only (Can, 2026-09-29)
+            greyed(master, lock)
         end
 
         -- Equalisation. Only offered when there is something it can actually
@@ -443,8 +668,12 @@ function C.onFill(playerNum, context, worldobjects, test)
             -- nothing; a row that works at 2 tiles and silently does not at 4
             -- reads as a broken switch. Grey it out where it will not work,
             -- and say so in its own words: it borrowed the cable's "Too far
-            -- for one run of cable", and there is no cable here.
-            if not reachable(playerObj, target) then
+            -- for one run of cable", and there is no cable here. The owner's
+            -- lock is said first (Can, 2026-09-29: "Lock them in 3.0.0"):
+            -- walking closer would not help with that one.
+            if lock then
+                greyed(opt, lock)
+            elseif not reachable(playerObj, target) then
                 opt.notAvailable = true
                 opt.toolTip = C.tip(getText("Tooltip_OffGrid_EqualiseReach"))
             end
@@ -498,11 +727,23 @@ function C.onFill(playerNum, context, worldobjects, test)
             opt.notAvailable = true
             opt.toolTip = C.tip(getText("Tooltip_OffGrid_NeedRagWater"))
         end
+
+    elseif part == "backup" then
+        C.backupMenu(menu, worldobjects, target, playerObj)
     end
 
     -- Wiring is offered on every kind, because every kind is either a loose
     -- end, something to land a cable on, or both.
     C.wireMenu(menu, worldobjects, target, playerObj, P.describe(target))
+
+    -- A controller tile painted with the Brush Tool: every row so far that
+    -- would act on it is greyed "Painted with the Brush Tool", before Pick up,
+    -- which works on it as on any part.
+    if part == "controller" and P.isPainted(target) then paintScenery(menu) end
+
+    -- A backup's way back to a vanilla generator comes after its cable rows:
+    -- the cable has to be cut first, and the row says so.
+    if part == "backup" then C.restoreRow(menu, worldobjects, target, playerObj) end
 
     -- Last row, because it is the one that ends the conversation.
     C.takeDownMenu(menu, worldobjects, target, playerObj)
@@ -551,19 +792,28 @@ function C.takeDownMenu(menu, worldobjects, target, playerObj)
 
     -- QUIET. The menu is rebuilt as the cursor moves over it, and a refusal
     -- halo per frame is how the pick-up lock earned its rate limit in the
-    -- first place. A part this character may not lift simply has no row, the
-    -- same as it has no cursor.
-    if OffGrid.Place and OffGrid.Place.mayTake
-            and not OffGrid.Place.mayTake(playerObj, sq, target, true) then
-        return
-    end
+    -- first place. A part this character may not lift keeps its row, greyed
+    -- with G.takeRefusal's reason, which is silent (Can, 2026-09-27: a
+    -- refused action is shown greyed with its reason, never hidden). Hiding
+    -- it gave a player the owner or screwdriver lock refuses the same silence
+    -- the sealed-cabinet report describes, since the cursor shows them
+    -- nothing either.
+    local refused = OffGrid.Place and OffGrid.Place.mayTake
+            and not OffGrid.Place.mayTake(playerObj, sq, target, true)
 
     local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_TakeDown"),
                                       worldobjects, C.onTakeDown, target, playerObj),
                        menu, "takeDown")
+    if refused then
+        local G = OffGrid.Place
+        local why = G.takeRefusal and G.takeRefusal(playerObj, sq, target)
+        opt.notAvailable = true
+        if why then opt.toolTip = C.tip(getText(why)) end
+        return
+    end
 
-    -- The one refusal worth showing rather than hiding: a full bag. Hiding it
-    -- would read as the same silence the cabinet already gives.
+    -- A full bag greys the row the same way. Hiding it would read as the
+    -- same silence the cabinet already gives.
     local inv = playerObj.getInventory and playerObj:getInventory()
     if inv and inv.hasRoomFor
             and not inv:hasRoomFor(playerObj, props.weight or 0) then
@@ -596,9 +846,13 @@ function C.onTakeDown(worldobjects, object, playerObj)
     -- a sealed cabinet's own square is solid and a ground array's is
     -- solidtrans, so neither can ever be stood on, and a walk aimed at the
     -- object's own tile would fail and take the queued action with it.
+    -- When no free square beside it can be reached (walled in, or only past
+    -- a closed door), the walk never starts. Say so once, on this click: the
+    -- menu is not rebuilt here, so this cannot repeat every frame.
     if not (ISMoveableDefinitions and ISMoveableDefinitions.cheat)
             and not props:walkToAndEquip(playerObj, sq, "pickup",
                                          props.spriteName) then
+        P.haloNote(playerObj, getText("IGUI_OffGrid_CannotReach"), true)
         return
     end
 
@@ -650,6 +904,9 @@ function C.onReadSky(worldobjects, playerObj)
 end
 
 function C.onBreaker(worldobjects, object, playerObj, on)
+    -- The monitor's knob comes here too; for a player the controller's lock
+    -- refuses it says why and walks him nowhere.
+    if refusedPress(playerObj, object) then return end
     if not C.approach(playerObj, object) then return end
     ISTimedActionQueue.add(OG_ResetBreaker:new(playerObj, object, on))
 end
@@ -702,6 +959,7 @@ end
 function C.onPickSource(worldobjects, object, playerObj)
     local info = P.describe(object)
     if not info then return end
+    if refusedPress(playerObj, object) then return end
     pending = { obj = object, kind = info.kind,
                 name = getItemNameFromFullType(P.itemFor(info.kind, info.mount,
                                                          info.tier) or "") }
@@ -714,6 +972,7 @@ end
 function C.onRunCable(worldobjects, target, playerObj)
     if not pendingValid(playerObj) then return end
     local src = pending.obj
+    if refusedPress(playerObj, src, target) then return end
     -- Walk to the end the player JUST CLICKED, not the one they marked earlier.
     -- Marking a panel on a roof and then walking downstairs to the controller
     -- is exactly how somebody would really do this, and sending the character
@@ -725,6 +984,7 @@ function C.onRunCable(worldobjects, target, playerObj)
 end
 
 function C.onCutCable(worldobjects, object, playerObj, other)
+    if refusedPress(playerObj, object, other) then return end
     if not C.approach(playerObj, object) then return end
     ISTimedActionQueue.add(OG_RunCable:new(playerObj, object, other, true, object))
 end
@@ -774,15 +1034,21 @@ function C.wireMenu(menu, worldobjects, target, playerObj, info)
     local d = P.data(target)
     local sysKey = (info.kind == "controller") and "self" or liveSys(d)
 
+    -- Every cable row asks the owner's lock of each part whose wiring it
+    -- changes (Can, 2026-09-29: "Lock them in 3.0.0"; a backup's too, "Lock
+    -- it too"), the lock S.connect and S.disconnect ask again first. A
+    -- refused row stays, greyed with the reason.
+    local lock = lockOf(playerObj, target)
+
     -- Step one: choose this part as the loose end.
     if info.kind ~= "controller" and not sysKey then
         if pending and pending.obj == target then
             C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireCancel"),
                                   worldobjects, C.onClearSource), menu, "wireCancel")
         else
-            C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireFrom"),
-                                  worldobjects, C.onPickSource, target, playerObj),
-                   menu, "wireFrom")
+            greyed(C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireFrom"),
+                                         worldobjects, C.onPickSource, target, playerObj),
+                          menu, "wireFrom"), lock)
         end
     end
 
@@ -802,11 +1068,25 @@ function C.wireMenu(menu, worldobjects, target, playerObj, info)
         local opt = C.icon(menu:addOption(
             P.txt("ContextMenu_OffGrid_WireTo", pending.name or "?"),
             worldobjects, C.onRunCable, target, playerObj), menu, "wireTo")
-        if far then
+        -- Both ends, before the server's other reasons, in the order
+        -- S.connect asks them: the loose end in hand, then this part.
+        local endLock = lockOf(playerObj, pending.obj) or lock
+        if endLock then
+            greyed(opt, endLock)
+        elseif far then
             opt.notAvailable = true
             local tip = ISWorldObjectContextMenu.addToolTip()
             tip.description = getText("IGUI_OffGrid_WireFar")
             opt.toolTip = tip
+        elseif pending.kind == "backup" and info.kind == "controller" and ps then
+            -- Four generators to a controller; S.connect refuses a fifth, in
+            -- this order (reach first, then the count).
+            local k = K()
+            local own = M.nodeKey(ps:getX(), ps:getY(), ps:getZ(), pending.kind)
+            if backupLeaves(d.wire, own) >= ((k and k.MAX_UNITS) or 4) then
+                opt.notAvailable = true
+                opt.toolTip = C.tip(getText("Tooltip_OffGrid_BkFull"))
+            end
         end
     end
 
@@ -814,15 +1094,21 @@ function C.wireMenu(menu, worldobjects, target, playerObj, info)
     -- cable itself can never be the thing you click. Each row says where the
     -- other end is: two arrays wired to one controller were two rows reading
     -- "Solar Array" and nothing else.
+    --  A cable is its ends' owners' groups' to cut, from either end: a
+    --  backup generator's first (Can, 2026-09-29: "Owner's group only"),
+    --  every part's since "Lock them in 3.0.0". Both ends' locks, as
+    --  S.disconnect asks them.
     local links = C.connectionsOf(target, info)
     if #links > 0 then
         local sub = C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireCut")),
                            menu, "wireCut")
         local ctx = ISContextMenu:getNew(menu)
         menu:addSubMenu(sub, ctx)
+        sub.ogSub = ctx
         for i = 1, #links do
-            ctx:addOption(C.linkText(target, links[i].obj), worldobjects,
-                          C.onCutCable, target, playerObj, links[i].obj)
+            local opt = ctx:addOption(C.linkText(target, links[i].obj), worldobjects,
+                                      C.onCutCable, target, playerObj, links[i].obj)
+            greyed(opt, lock or lockOf(playerObj, links[i].obj))
         end
     end
 end
@@ -831,6 +1117,7 @@ function C.onEqualise(worldobjects, object, playerObj, on)
     if not object then return end
     local sq = object:getSquare()
     if not sq then return end
+    if refusedPress(playerObj, object) then return end
     -- Never written here. A client's transmitModData() replaces the object's
     -- whole ModData table on the server, so setting one flag from the client
     -- would also clobber the live charge the server has been keeping.
@@ -868,23 +1155,30 @@ end
 --  client must not push a part's ModData). The server accepts these from
 --  anywhere within the part's own reach, so there is no walk: the player is
 --  on site, and the Building Picker is used from where they stand.
+--  All three are the part's owner's group's (Can, 2026-09-29: "Lock them in
+--  3.0.0"): for anyone else each stays on the menu, greyed with the lock's
+--  reason in place of its own tooltip, as OG_Distrib refuses them.
 function C.buildingMenu(menu, worldobjects, target, playerObj, part)
     local n = wiredCount(P.data(target))
+    local lock = lockOf(playerObj, target)
     if n == 0 then
         local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_WireBuilding"), worldobjects,
                                           C.onWireBuilding, target, playerObj),
                            menu, "wireBuilding")
         opt.toolTip = C.tip(getText("Tooltip_OffGrid_WireBuilding"))
+        greyed(opt, lock)
     end
     local pick = C.icon(menu:addOption(getText("ContextMenu_OffGrid_ChooseBuildings"), worldobjects,
                                        C.onChooseBuildings, target, playerObj),
                         menu, "chooseBuildings")
     pick.toolTip = C.tip(getText("Tooltip_OffGrid_ChooseBuildings"))
+    greyed(pick, lock)
     if n > 0 then
         local opt = C.icon(menu:addOption(P.txt("ContextMenu_OffGrid_UnwireBuildings", n), worldobjects,
                                           C.onUnwireBuildings, target, playerObj),
                            menu, "unwireBuildings")
         opt.toolTip = C.tip(getText("Tooltip_OffGrid_UnwireBuildings"))
+        greyed(opt, lock)
     end
 end
 
@@ -895,19 +1189,312 @@ local function partArgs(object)
 end
 
 function C.onWireBuilding(worldobjects, object, playerObj)
+    if refusedPress(playerObj, object) then return end
     local args = partArgs(object)
     if args then C.send(playerObj, "bwDefault", args) end
 end
 
 function C.onUnwireBuildings(worldobjects, object, playerObj)
+    if refusedPress(playerObj, object) then return end
     local args = partArgs(object)
     if args then C.send(playerObj, "bwClear", args) end
 end
 
 function C.onChooseBuildings(worldobjects, object, playerObj)
+    if refusedPress(playerObj, object) then return end
     -- OG_Picker loads after this file (see the note on OG_Info at the top),
     -- so it is reached through its table, not required.
     if OffGrid.Picker and OffGrid.Picker.open then OffGrid.Picker.open(playerObj, object) end
+end
+
+------------------------------------------------------------ backup generators
+
+--  A converted generator is an Off-Grid part of its own kind (OG_Backup), and
+--  its rows live here beside every other part's. The rule for all of them is
+--  Can's, 2026-09-27: "people should know why they can't convert so that they
+--  don't get confused". A row that cannot be used yet stays on the menu,
+--  greyed, with the reason and what to do; it is never hidden. The reasons are
+--  OG_Backup's refusal functions, the ones the authority asks again when the
+--  action completes, so the menu and the server give the same reason
+--  (greyed, near the top of this file).
+
+--- A square as the feed string writes one (K.encodeFeeds): whole numbers,
+--  because every number here is a double.
+local function posKey(x, y, z)
+    return math.floor(x) .. "," .. math.floor(y) .. "," .. math.floor(z)
+end
+
+--- A barrel (or a pump) as a row: its name, the way there from the unit and
+--  the petrol in it, "Rain Collector Barrel, 2 tiles east (38.5 L)". The name
+--  is the one vanilla's own menu gives a placed object, else its fluid's.
+local function barrelText(unit, obj, fc)
+    local k = K()
+    local W = ISWorldObjectContextMenu
+    local name = W and W.getMoveableDisplayName and W.getMoveableDisplayName(obj)
+    name = name or P.try(obj, "getFluidUiName") or "?"
+    local usq, bsq = unit:getSquare(), obj:getSquare()
+    local where = name
+    if usq and bsq then
+        where = P.txt("IGUI_OffGrid_InfoLink", name,
+                      P.offsetText(usq:getX(), usq:getY(), usq:getZ(),
+                                   bsq:getX(), bsq:getY(), bsq:getZ()))
+    end
+    if not (fc and k) then return where end
+    local litres = k.petrolIn(fc)
+    return P.txt("IGUI_OffGrid_InfoFeedsValue", where, string.format("%.1f", litres or 0))
+end
+
+--- What a unit could be fed from, found here on the client.
+--
+--  Every square within K.FEED_RANGE along each axis on the unit's own level.
+--  The corners of that box lie past the 5-tile reach, so a barrel just out of
+--  it is listed greyed "Too far" instead of silently missing. On each square
+--  the first fluid container (K.findBarrel, the one the authority would draw
+--  from), when it holds petrol or nothing yet: a water butt or a sink full of
+--  water is not a fuel barrel anyone meant, and a house's worth of them would
+--  bury the ones that are. A gas-station pump is listed too, greyed with why
+--  it cannot be used. The unit's own feeds are left out; they are its
+--  Disconnect rows.
+local function barrelsNear(unit, k)
+    local out = {}
+    local sq = unit:getSquare()
+    if not sq then return out end
+    local ux, uy, uz = sq:getX(), sq:getY(), sq:getZ()
+    local own = {}
+    local feeds = k.decodeFeeds(P.data(unit).feeds)
+    for i = 1, #feeds do own[posKey(feeds[i].x, feeds[i].y, feeds[i].z)] = true end
+    local r = k.FEED_RANGE
+    for dy = -r, r do
+        for dx = -r, r do
+            local x, y = ux + dx, uy + dy
+            if not own[posKey(x, y, uz)] then
+                local obj, fc = k.findBarrel(x, y, uz)
+                if obj then
+                    if fc and ((k.petrolIn(fc) or 0) > 0 or fc:getAmount() <= 0) then
+                        out[#out + 1] = { obj = obj, fc = fc }
+                    end
+                else
+                    local bsq = getSquare(x, y, uz)
+                    local objs = bsq and bsq:getObjects()
+                    local n = objs and objs:size() or 0
+                    for i = 0, n - 1 do
+                        local o = objs:get(i)
+                        if o and k.isPump(o) then
+                            out[#out + 1] = { obj = o }
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+--- Convert to Off-Grid backup, for a native generator. Always shown: greyed
+--  with the first reason that stops it, and when it can be used its tooltip
+--  says what converting means, including that removing Off-Grid from the save
+--  takes the generator with it.
+function C.convertRow(menu, worldobjects, gen, playerObj)
+    local k = K()
+    if not k or not gen then return nil end
+    local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkConvert"), worldobjects,
+                                      C.onBackupConvert, gen, playerObj), menu, "bkConvert")
+    local why = k.convertRefusal(playerObj, gen)
+    if why then return greyed(opt, why) end
+    opt.toolTip = C.tip(getText("Tooltip_OffGrid_BkConvert"))
+    return opt
+end
+
+--- The Off-Grid option on a generator clicked with no part of ours: the
+--  Convert row on its own.
+function C.convertMenu(context, worldobjects, gen, playerObj)
+    local sub = C.icon(context:addOption(getText("ContextMenu_OffGrid"), worldobjects, nil),
+                       context, "offgrid")
+    local menu = ISContextMenu:getNew(context)
+    context:addSubMenu(sub, menu)
+    C.convertRow(menu, worldobjects, gen, playerObj)
+    C.dimUnavailable(menu)
+    return true
+end
+
+--- A backup's own rows, in the approved order: Start or Stop, its AUTO
+--  switch, Refuel, Repair the generator, then the fuel barrels. Run cable,
+--  Convert to normal generator and Pick up follow from C.onFill.
+function C.backupMenu(menu, worldobjects, target, playerObj)
+    local k = K()
+    local sq = target and target:getSquare()
+    if not k or not sq or not playerObj then return end
+    local d = P.data(target)
+    local ux, uy, uz = sq:getX(), sq:getY(), sq:getZ()
+    local inv = playerObj:getInventory()
+
+    -- Start or Stop, by hand: only while this unit's own AUTO is off, the
+    -- rule the GEN page's ON/OFF switch and the authority (BK.cmdRun) keep,
+    -- so Auto never undoes what a player did by hand. While it is on, both
+    -- rows stay on the menu greyed "Switch its AUTO off first." (Can,
+    -- 2026-09-28: greyed "until AUTO is disabled for that generator").
+    --
+    -- Its controls are its owner's group's (Can, 2026-09-29: "Owner's group
+    -- only"): Start, Stop, AUTO and the barrels are greyed with the lock's
+    -- reason for anyone else, asked before any other reason as the authority
+    -- asks it. Refuel and Repair stay open to anyone nearby.
+    local lock = lockOf(playerObj, target)
+    local hand = k.handRefusal(d)
+    if d.run == "on" then
+        local stop = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkStop"), worldobjects,
+                                           C.onBackupRow, playerObj, target, "bkRun",
+                                           ux, uy, uz, false), menu, "bkStop")
+        greyed(stop, lock or hand)
+    else
+        local start = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkStart"), worldobjects,
+                                            C.onBackupRow, playerObj, target, "bkRun",
+                                            ux, uy, uz, true), menu, "bkStart")
+        greyed(start, lock or hand or k.startRefusal(target))
+    end
+
+    -- Its own AUTO switch; the controller's Generator Auto is the master.
+    local autoOn = d.auto ~= false
+    local autoRow = C.icon(menu:addOption(getText(autoOn and "ContextMenu_OffGrid_BkAutoOff"
+                                                         or "ContextMenu_OffGrid_BkAutoOn"),
+                                          worldobjects, C.onBackupRow, playerObj, target,
+                                          "bkAuto", ux, uy, uz, not autoOn),
+                           menu, "bkAuto")
+    greyed(autoRow, lock)
+
+    -- Refuel by hand from any petrol container, running or not.
+    local petrol = inv and inv:getFirstEvalRecurse(predicatePetrol)
+    local fuel = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkRefuel"), worldobjects,
+                                       C.onBackupRefuel, target, playerObj, petrol),
+                        menu, "bkRefuel")
+    greyed(fuel, k.refuelRefusal(playerObj, target, petrol))
+
+    -- Repair: one Scrap Electronics a go, vanilla's generator repair.
+    local scrap = inv and inv:getFirstEvalRecurse(predicateScrap)
+    local fix = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkRepair"), worldobjects,
+                                      C.onBackupRepair, target, playerObj, scrap),
+                       menu, "bkRepair")
+    greyed(fix, k.repairRefusal(playerObj, target, scrap))
+
+    -- Connect fuel barrel: one row per barrel in reach, each with its reason.
+    -- With none there is nothing to open, and the row says no barrel of
+    -- gasoline stands within reach: a water barrel two tiles off is not "too
+    -- far", it is not a fuel barrel.
+    -- Someone else's generator: the row greyed with the lock's reason and no
+    -- list behind it, since no barrel on it could be used.
+    local hose = inv and inv:getFirstTypeRecurse(k.HOSE)
+    local feed = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkFeed")), menu, "bkFeed")
+    local found = lock and {} or barrelsNear(target, k)
+    if lock then
+        greyed(feed, lock)
+    elseif #found == 0 then
+        greyed(feed, "Tooltip_OffGrid_BkNoBarrel")
+    else
+        local sub = ISContextMenu:getNew(menu)
+        menu:addSubMenu(feed, sub)
+        for i = 1, #found do
+            local b = found[i]
+            local opt = sub:addOption(barrelText(target, b.obj, b.fc), worldobjects,
+                                      C.onBackupFeed, target, playerObj, b.obj, hose)
+            greyed(opt, k.feedRefusal(playerObj, target, b.obj))
+        end
+    end
+
+    -- Disconnect fuel barrel: one row per feed; the hose comes back.
+    local feeds = k.decodeFeeds(d.feeds)
+    if #feeds > 0 and lock then
+        greyed(C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkFeedCut")),
+                      menu, "bkFeedCut"), lock)
+    elseif #feeds > 0 then
+        local cut = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkFeedCut")),
+                           menu, "bkFeedCut")
+        local sub = ISContextMenu:getNew(menu)
+        menu:addSubMenu(cut, sub)
+        for i = 1, #feeds do
+            local f = feeds[i]
+            local obj, fc = k.findBarrel(f.x, f.y, f.z)
+            local label = obj and barrelText(target, obj, fc)
+                          or P.offsetText(ux, uy, uz, f.x, f.y, f.z)
+            sub:addOption(label, worldobjects, C.onBackupFeedCut, target, playerObj,
+                          f.x, f.y, f.z)
+        end
+    end
+end
+
+--- Convert to normal generator. The server's pickup rule decides who may,
+--  and it has to be stopped and its cable cut first (K.restoreRefusal).
+function C.restoreRow(menu, worldobjects, target, playerObj)
+    local k = K()
+    if not k then return nil end
+    local opt = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkRestore"), worldobjects,
+                                      C.onBackupRestore, target, playerObj), menu, "bkRestore")
+    return greyed(opt, k.restoreRefusal(playerObj, target))
+end
+
+--- A menu row's click for the commands, in the shape the GEN buttons use: a
+--  row's callback gets the menu's worldobjects first.
+function C.onBackupRow(worldobjects, playerObj, object, cmd, ux, uy, uz, value)
+    C.onBackupPanel(playerObj, object, cmd, ux, uy, uz, value)
+end
+
+--- Start, Stop, AUTO, Generator Auto and the Start at / Stop at steps, from
+--  this menu or the GEN page. Walk to the object, then a short action at it
+--  whose completion sends the command (OG_BackupPanel), the way the breaker
+--  row queues OG_ResetBreaker: the command arrives after the walk and within
+--  reach, and the authority checks it again. Returns the action queued, or
+--  nil, so the GEN page can tell a press still in flight (OG_Window).
+function C.onBackupPanel(playerObj, object, cmd, ux, uy, uz, value)
+    if not playerObj or not object then return nil end
+    if not C.approach(playerObj, object) then return nil end
+    local act = OG_BackupPanel:new(playerObj, object, cmd, ux, uy, uz, value)
+    ISTimedActionQueue.add(act)
+    return act
+end
+
+function C.onBackupConvert(worldobjects, gen, playerObj)
+    if not gen or not playerObj then return end
+    if not C.approach(playerObj, gen) then return end
+    ISTimedActionQueue.add(OG_BackupConvert:new(playerObj, gen))
+end
+
+function C.onBackupRestore(worldobjects, object, playerObj)
+    if not object or not playerObj then return end
+    if not C.approach(playerObj, object) then return end
+    ISTimedActionQueue.add(OG_BackupRestore:new(playerObj, object))
+end
+
+function C.onBackupRefuel(worldobjects, object, playerObj, petrol)
+    if not object or not playerObj or not petrol then return end
+    if not C.approach(playerObj, object) then return end
+    -- The can in hand, as vanilla's Add Fuel has it (ISWorldObjectContextMenu
+    -- doAddFuelGenerator): the pouring animation holds it.
+    local W = ISWorldObjectContextMenu
+    if W and W.equip then
+        W.equip(playerObj, playerObj:getPrimaryHandItem(), petrol, true, false)
+    end
+    ISTimedActionQueue.add(OG_BackupRefuel:new(playerObj, object, petrol))
+end
+
+function C.onBackupRepair(worldobjects, object, playerObj, scrap)
+    if not object or not playerObj or not scrap then return end
+    if not C.approach(playerObj, object) then return end
+    ISTimedActionQueue.add(OG_BackupRepair:new(playerObj, object, scrap))
+end
+
+--- Run a hose from the unit to one barrel. The walk goes to the unit: the
+--  work is done there, and the barrel only has to be within 5 tiles of it.
+function C.onBackupFeed(worldobjects, object, playerObj, barrel, hose)
+    local bsq = barrel and barrel:getSquare()
+    if not object or not playerObj or not bsq or not hose then return end
+    if not C.approach(playerObj, object) then return end
+    ISTimedActionQueue.add(OG_BackupFeed:new(playerObj, object, bsq:getX(), bsq:getY(),
+                                             bsq:getZ(), hose, false))
+end
+
+function C.onBackupFeedCut(worldobjects, object, playerObj, fx, fy, fz)
+    if not object or not playerObj then return end
+    if not C.approach(playerObj, object) then return end
+    ISTimedActionQueue.add(OG_BackupFeed:new(playerObj, object, fx, fy, fz, nil, true))
 end
 
 Events.OnFillWorldObjectContextMenu.Add(C.onFill)

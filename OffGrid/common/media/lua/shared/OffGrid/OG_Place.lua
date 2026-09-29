@@ -57,8 +57,18 @@ require "TimedActions/ISDropWorldItemAction"
 require "TimedActions/ISTakeGenerator"
 require "TimedActions/ISDropVehicleItemAction"
 require "TimedActions/ISDestroyStuffAction"
+require "TimedActions/ISActivateGenerator"
+require "TimedActions/ISAddFuel"
+require "TimedActions/ISFixGenerator"
+require "TimedActions/ISPlugGenerator"
 require "OffGrid/OG_Parts"
 require "OffGrid/OG_Lamps"
+-- The backup generator's rules: where it may stand (B.enclosedAt) and its
+-- barrels and hoses. Required so the game loads them first; every use below
+-- still reaches OffGrid.Backup at call time through K(), because the headless
+-- suites load this file without it (and no backup can exist there).
+require "OffGrid/OG_Buildings"
+require "OffGrid/OG_Backup"
 
 OffGrid = OffGrid or {}
 OffGrid.Place = OffGrid.Place or {}
@@ -66,6 +76,9 @@ local G = OffGrid.Place
 local P = OffGrid.Parts
 local M = OffGrid.Model
 local try, sandbox = P.try, P.sandbox
+
+--- OffGrid.Backup, or nil where it is not loaded.
+local function K() return OffGrid.Backup end
 
 --- What the removal handler needs to know about objects leaving a square (see
 --  "a part leaving the world", further down). Declared ahead of everything
@@ -133,6 +146,15 @@ local function initController(gen, item, info)
         if type(src.owner) == "string" and src.owner ~= "" then
             d.owner = src.owner
         end
+        -- The generator Auto settings the player chose (the master switch and
+        -- the two levels) travel both ways; the backups' mirror and the sun
+        -- timer only on a rotation, because a pick-up strips them. Types are
+        -- checked: an item carries whatever the build that wrote it wrote.
+        if type(src.bkAuto) == "boolean" then d.bkAuto = src.bkAuto end
+        if type(src.bkStart) == "number" then d.bkStart = src.bkStart end
+        if type(src.bkStop) == "number" then d.bkStop = src.bkStop end
+        if type(src.bkMirror) == "string" then d.bkMirror = src.bkMirror end
+        if type(src.bkSunSince) == "number" then d.bkSunSince = src.bkSunSince end
     end
     return d
 end
@@ -319,6 +341,21 @@ function G.seed(obj, item, info)
             -- src at all and still starts clean.
             d.snow = src.snow or 0
             P.setState(obj, P.arrayState(d))
+        elseif info.kind == "backup" then
+            -- The tank rides on the item as a Lua number. Clamped, because an
+            -- item is save data, and the tank holds what vanilla's holds.
+            local tank = (K() and K().TANK) or 10
+            d.fuel = M.clamp(tonumber(src.fuel) or 0, 0, tank)
+            -- Only a rotation carries these (a pick-up strips them): its own
+            -- AUTO switch, its barrels (whose claims still name this square),
+            -- the wear remainder and an Auto rest that has not run out. Any
+            -- fault comes with a rotation; with a pick-up only the FAULT a
+            -- repair clears (worn out, or burnt: "fire").
+            if type(src.auto) == "boolean" then d.auto = src.auto end
+            if type(src.fault) == "string" then d.fault = src.fault end
+            if type(src.feeds) == "string" then d.feeds = src.feeds end
+            if type(src.wear) == "number" then d.wear = src.wear end
+            if type(src.rest) == "number" then d.rest = src.rest end
         end
     end
     -- Vanilla gives the item the sprite the object wore, so a transformer
@@ -326,6 +363,19 @@ function G.seed(obj, item, info)
     -- It starts dark; its controller lights it once it is wired in. A
     -- rotation keeps its system, and its lamp with it.
     if info.kind == "transformer" and not d.sys then P.setState(obj, "off") end
+    -- A backup always lands stopped, whatever the item's sprite or the
+    -- ModData vanilla copied across from it says: only its controller's tick
+    -- or a player's Start runs it, once it is cabled and checked.
+    if info.kind == "backup" then
+        d.run = "off"
+        d.since = nil
+        P.setState(obj, "off")
+        -- The sound module (singleplayer): vanilla's placement fires no event
+        -- there. A multiplayer client hears of it by OnObjectAdded, and a
+        -- dedicated server has no sound module.
+        local BS = OffGrid.BackupSound
+        if BS and BS.found then BS.found(obj) end
+    end
     if OffGrid.System then OffGrid.System.register(obj) end
 end
 
@@ -348,6 +398,13 @@ function G.stow(obj, square, rotating)
         -- the floor.
         local cells = G.takeCells(obj, info)
         for i = 1, #cells do G.giveBackCell(square, cells[i]) end
+    end
+    if info.kind == "backup" and not rotating and K() then
+        -- A backup lets go of its barrels and hands back the Rubber Hose each
+        -- was connected with, on the floor it stood on. A rotation keeps them:
+        -- the same unit goes straight back on the same square, where every
+        -- barrel's claim still names it.
+        K().dropHoses(square, K().releaseFeeds(obj, square))
     end
 end
 
@@ -418,6 +475,24 @@ end
 local NOTE_EVERY_MS = 3000
 local noteSaidAt = {}
 
+--- Put a refusal's reason above the character, in the warning colour.
+local function tell(character, key)
+    if not character then return end
+    if isServer() then
+        -- The KEY, translated by the client. A dedicated server never
+        -- loads mod translations, so getText there hands the key back
+        -- and a SET_HALO_NOTE object change would show it verbatim.
+        -- OG_Commands turns it into the player's own language, in the
+        -- warning colour a refusal is drawn in (P.haloNote).
+        if sendServerCommand then
+            sendServerCommand(character, "OffGrid", "note",
+                              { key = key, id = try(character, "getOnlineID"), warn = true })
+        end
+    else
+        P.haloNote(character, getText(key), true)
+    end
+end
+
 local function refuse(character, key, quiet)
     if quiet or not character then return false end
     local now = getTimestampMs and getTimestampMs() or 0
@@ -427,18 +502,7 @@ local function refuse(character, key, quiet)
     end
     if (now - (noteSaidAt[who] or 0)) > NOTE_EVERY_MS then
         noteSaidAt[who] = now
-        if isServer() then
-            -- The KEY, translated by the client. A dedicated server never
-            -- loads mod translations, so getText there hands the key back
-            -- and a SET_HALO_NOTE object change would show it verbatim.
-            -- OG_Commands turns it into the player's own language.
-            if sendServerCommand then
-                sendServerCommand(character, "OffGrid", "note",
-                                  { key = key, id = try(character, "getOnlineID") })
-            end
-        elseif character.setHaloNote then
-            character:setHaloNote(getText(key))
-        end
+        tell(character, key)
     end
     return false
 end
@@ -475,71 +539,22 @@ function G.isStaff(character)
     return lvl == "admin" or lvl == "moderator"
 end
 
---- A controller that is running, which nobody may lift or turn.
+--- A part that is running, which nobody may lift or turn: a controller that
+--  is switched on, or a backup generator whose sprite is the lit one. The
+--  authority flips a backup's sprite with its run state, and the sprite is
+--  what every client holds, so the cursor answers the same everywhere.
 local function running(object)
-    return object ~= nil and P.partOf(object) == "controller"
-           and try(object, "isActivated") == true
+    local info = object ~= nil and P.describe(object) or nil
+    if not info then return false end
+    if info.kind == "controller" then return try(object, "isActivated") == true end
+    return info.kind == "backup" and info.state == "on"
 end
 
---- Is this character allowed to take this part?
---
---  The one owner, tool and switch-off rule, only ever used to turn a true into
---  a false. Anything that is not an OffGrid part, and any case this cannot
---  answer confidently, returns true so the mod never blocks something it does
---  not own. Asked by the canPickUpMoveableInternal hook (every frame on the
---  client's cursor, and again on the authority inside pickUpMoveable when the
---  action completes), by the rotateMoveable wrapper, and through
---  G.mayTakeCell by battery removal (OG_Actions, OG_Bank) and rack
---  destruction, which ask it on the authority. So it is enforced server-side,
---  not only a cursor hint.
---
---  `quiet` answers the question without telling the player anything.
-function G.mayTake(character, square, object, quiet)
-    if not object or not P.partOf(object) then return true end
-
-    -- A RUNNING controller stays where it is. Removal skips the engine's
-    -- setSurroundingElectricity(false) teardown, so the chunk's generator
-    -- entries kept powering the neighbourhood off a generator in somebody's
-    -- pocket. Vanilla never faces this (its generators are not moveables);
-    -- ours are, so the gate is ours to hold. Switching off is instant now,
-    -- so the cost is one click.
-    if running(object) then
-        return refuse(character, "IGUI_OffGrid_SwitchOffFirst", quiet)
-    end
-
-    local mode = sandbox("PickupLock")
-    if mode == G.LOCK_ANYONE then return true end
-    if not character then return true end
-
-    -- Staff are never blocked. The outer canPickUpMoveable already
-    -- short-circuits on the movables-cheat toggle before reaching the
-    -- internal, so only the role has to be covered here.
-    if G.isStaff(character) then return true end
-
-    if mode == G.LOCK_TOOL then
-        -- The fail-open stays HERE, not in the helper. A character with no
-        -- readable inventory must not be locked out of a part they placed,
-        -- whereas the repair menu greying itself out in the same situation is
-        -- harmless. Same question, two different right answers on failure.
-        local inv = try(character, "getInventory")
-        if not inv then return true end
-        if P.hasScrewdriver(character) then return true end
-        return refuse(character, "Tooltip_OffGrid_NeedScrewdriver", quiet)
-    end
-
-    -- G.LOCK_OWNER
-    --
-    -- Singleplayer is one household and ownership cannot mean anything
-    -- there. It is NOT that a singleplayer character has no username: the
-    -- engine sets it to forename..surname (IsoPlayer.updateUsername), so a
-    -- stamp was a real name and a replacement character after a death, or a
-    -- second character in the same world, was locked out of every part the
-    -- first one placed, with a red cursor and no reason. Since 2.10.0
-    -- singleplayer does not stamp at all (G.stamp). A part stamped there by
-    -- an older build keeps that name, and if the world is moved onto a server
-    -- only staff or its safehouse can lift it.
-    if not isClient() and not isServer() then return true end
-
+--- Is this character one of the part's own people: its owner (by account
+--  name, any case), a player its safehouse admits, or anyone at all when
+--  nobody owns it or the character has no name to compare? The owner lock's
+--  question, shared by G.takeRefusal and G.useRefusal.
+local function ownersGroup(character, square, object)
     local owner = G.ownerOf(object)
     -- A part placed before this option existed carries no owner. Refusing
     -- those would strand every rig already standing in a live save.
@@ -558,8 +573,128 @@ function G.mayTake(character, square, object, quiet)
             if ok2 and allowed then return true end
         end
     end
+    return false
+end
 
-    return refuse(character, "IGUI_OffGrid_NotYours", quiet)
+--- Why this character may not take this part: the translation key of the
+--  reason, or nil when they may.
+--
+--  The one owner, tool and switch-off rule, only ever used to turn a yes into
+--  a no. Anything that is not an OffGrid part, and any case this cannot
+--  answer confidently, is nil, so the mod never blocks something it does not
+--  own. Silent: G.mayTake is the gate that tells the player. The menus ask
+--  this for the reason a row is greyed with (a backup's Pick up, and Convert
+--  to normal generator through K.restoreRefusal), and a menu must not put a
+--  note on screen every time it opens.
+function G.takeRefusal(character, square, object)
+    if not object or not P.partOf(object) then return nil end
+
+    -- A RUNNING controller stays where it is. Removal skips the engine's
+    -- setSurroundingElectricity(false) teardown, so the chunk's generator
+    -- entries kept powering the neighbourhood off a generator in somebody's
+    -- pocket. Vanilla never faces this (its generators are not moveables);
+    -- ours are, so the gate is ours to hold. Switching off is instant now,
+    -- so the cost is one click. A running backup generator stays too: it is
+    -- stopped first, so its tank is settled before it goes anywhere.
+    if running(object) then
+        if P.partOf(object) == "backup" then return "Tooltip_OffGrid_BkStopFirst" end
+        return "IGUI_OffGrid_SwitchOffFirst"
+    end
+
+    local mode = sandbox("PickupLock")
+    if mode == G.LOCK_ANYONE then return nil end
+    if not character then return nil end
+
+    -- Staff are never blocked. The outer canPickUpMoveable already
+    -- short-circuits on the movables-cheat toggle before reaching the
+    -- internal, so only the role has to be covered here.
+    if G.isStaff(character) then return nil end
+
+    if mode == G.LOCK_TOOL then
+        -- The fail-open stays HERE, not in the helper. A character with no
+        -- readable inventory must not be locked out of a part they placed,
+        -- whereas the repair menu greying itself out in the same situation is
+        -- harmless. Same question, two different right answers on failure.
+        local inv = try(character, "getInventory")
+        if not inv then return nil end
+        if P.hasScrewdriver(character) then return nil end
+        return "Tooltip_OffGrid_NeedScrewdriver"
+    end
+
+    -- G.LOCK_OWNER
+    --
+    -- Singleplayer is one household and ownership cannot mean anything
+    -- there. It is NOT that a singleplayer character has no username: the
+    -- engine sets it to forename..surname (IsoPlayer.updateUsername), so a
+    -- stamp was a real name and a replacement character after a death, or a
+    -- second character in the same world, was locked out of every part the
+    -- first one placed, with a red cursor and no reason. Since 2.10.0
+    -- singleplayer does not stamp at all (G.stamp). A part stamped there by
+    -- an older build keeps that name, and if the world is moved onto a server
+    -- only staff or its safehouse can lift it.
+    if not isClient() and not isServer() then return nil end
+
+    if ownersGroup(character, square, object) then return nil end
+    return "IGUI_OffGrid_NotYours"
+end
+
+--- Why this character may not USE this part's controls: the translation
+--  key of the reason, or nil when they may.
+--
+--  Can, 2026-09-29 ("Owner's group only (Recommended)"): a backup
+--  generator's AUTO, ON/OFF, Start and Stop, its fuel barrels and its cable,
+--  and a controller's GEN master Auto and Start at / Stop at, follow the
+--  pick-up lock's people: the owner, their safehouse, staff, and whoever the
+--  server's Pick-up option lets lift the part ("Anyone", or "Anyone with a
+--  screwdriver" carrying one). The same day ("Lock them in 3.0.0", and "Lock
+--  it too" for a cable to a backup) the rig's own controls joined them: a
+--  controller's Switch on / Switch off (the menu rows and the OG-1200's main
+--  isolator knob), Reset the breaker and Equalise; Run cable from here,
+--  Connect and Cut a cable on any part, each part whose wiring changes; and
+--  Wire up the building, Choose buildings and Unwire on a controller or a
+--  transformer. Two things differ from G.takeRefusal, both because a control
+--  is not a lift: a running part is no reason (stopping a running generator
+--  or switching off a running controller is exactly what its switch is
+--  for), and the owner's group needs no tool (a switch has no screws).
+--  Reading (the monitor, Info, coverage, the almanac) and the chores
+--  (sweeping, cleaning, repairing a frame, a backup's Refuel and Repair) ask
+--  nobody. Singleplayer is one household, as for every part. Silent, like
+--  G.takeRefusal: the menus grey their rows with it and the GEN page and the
+--  knob their controls, every frame; the authority asks G.mayUse, which
+--  tells the player (and OG_BackupSys's BK.unlocked for a backup's own).
+function G.useRefusal(character, square, object)
+    if not object or not P.partOf(object) then return nil end
+    local mode = sandbox("PickupLock")
+    if mode == G.LOCK_ANYONE then return nil end
+    if not character then return nil end
+    if not isClient() and not isServer() then return nil end
+    if G.isStaff(character) then return nil end
+    if ownersGroup(character, square, object) then return nil end
+    if mode == G.LOCK_TOOL then
+        -- G.takeRefusal's fail-open: no readable inventory is no refusal.
+        local inv = try(character, "getInventory")
+        if not inv then return nil end
+        if P.hasScrewdriver(character) then return nil end
+        return "Tooltip_OffGrid_NeedScrewdriver"
+    end
+    return "IGUI_OffGrid_NotYours"
+end
+
+--- Is this character allowed to take this part?
+--
+--  G.takeRefusal's answer as a yes or no, and the gate that tells the player
+--  why. Asked by the canPickUpMoveableInternal hook (every frame on the
+--  client's cursor, and again on the authority inside pickUpMoveable when the
+--  action completes), by the rotateMoveable wrapper, and through
+--  G.mayTakeCell by battery removal (OG_Actions, OG_Bank) and rack
+--  destruction, which ask it on the authority. So it is enforced server-side,
+--  not only a cursor hint.
+--
+--  `quiet` answers the question without telling the player anything.
+function G.mayTake(character, square, object, quiet)
+    local key = G.takeRefusal(character, square, object)
+    if not key then return true end
+    return refuse(character, key, quiet)
 end
 
 --- May this character take a battery out of this rack?
@@ -573,6 +708,24 @@ function G.mayTakeCell(character, object, quiet)
     if sandbox("PickupLock") ~= G.LOCK_OWNER then return true end
     local sq = object.getSquare and object:getSquare()
     return G.mayTake(character, sq, object, quiet)
+end
+
+--- May this character use this part's controls?
+--
+--  G.useRefusal's answer as a yes or no, and the gate that tells the player
+--  why, in the warning colour. Asked on the authority by every command and
+--  timed action the rig lock covers (Can, 2026-09-29, "Lock them in
+--  3.0.0"): OG_ResetBreaker's completion (Switch on, Switch off, Reset the
+--  breaker), OG_System's equalise, connect and disconnect (both ends of a
+--  cable), and OG_Distrib's building commands. Unlike G.mayTake's note it
+--  is said every time: a command is one press, not a cursor hovering.
+--  A character of nil is the authority's own call and never refused.
+--  `quiet` answers the question without telling the player anything.
+function G.mayUse(character, object, quiet)
+    local key = G.useRefusal(character, try(object, "getSquare"), object)
+    if not key then return true end
+    if not quiet then tell(character, key) end
+    return false
 end
 
 ----------------------------------------------------------------- the hooks
@@ -772,6 +925,18 @@ function ISMoveableSpriteProps:placeMoveableInternal(...)
     local info = P.spriteInfo(spriteName)
     -- the original gets exactly what it was handed, in either form
     local obj = origPlace(self, ...)
+    -- A multiplayer client never completes a real placement: vanilla runs
+    -- every one on the server, from ISMoveablesAction:complete, in 42.20.4
+    -- and 42.21 alike. What reaches this on a client is the admin brush
+    -- tool: on 42.20.4 the admin's own client places the tile locally, and
+    -- on 42.21 the server builds it and every client in range places it
+    -- again on its own copy (the OnTileObjectAdded echo,
+    -- ISBrushToolTileCursor.lua:21-23). The follow-up below belongs to the
+    -- authority. On a client, makeController's transmitRemoveItemFromSquare
+    -- sends a bare object index and the server deletes whatever it holds
+    -- there, on 42.21 the tile just brushed; the rest writes client-only
+    -- state the server never has. So vanilla's object goes back untouched.
+    if isClient() then return obj end
     if not info or not square then return obj end
     if info.kind == "controller" then
         local gen = G.makeController(square, item, info, obj)
@@ -811,6 +976,14 @@ if origCanPlace then
         local objs = square:getObjects()
         for i = 0, objs:size() - 1 do
             if P.partOf(objs:get(i)) == info.kind then return false end
+        end
+        -- A backup generator never goes down indoors (a map room, or walled
+        -- and roofed: B.enclosedAt), where it would only stop at once with
+        -- INDOORS. The reason goes on the cursor, rate-limited like a pickup
+        -- refusal; the character is this call's own first argument.
+        if info.kind == "backup" and K() then
+            local k = K().placeRefusal(square)
+            if k then return refuse(character, k) end
         end
         return allowed
     end
@@ -953,6 +1126,26 @@ function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
                 -- longer reaches, and the registry would light it.
                 copy.bw = nil
                 copy.bwr = nil
+                -- A backup generator carries its brand, tank and condition and
+                -- nothing about the spot it stood on: its barrels (their hoses
+                -- are on the floor already, G.stow), whether it ran, a fault
+                -- the next tick judges again (NO FUEL, INDOORS, OFF BY
+                -- SERVER), wear remainder, Auto timers, its own AUTO switch
+                -- and backfire counter. Put down, it starts as a fresh one
+                -- does (P.data, G.seed). Its FAULT is not about the spot and
+                -- rides along, and only a repair clears it: a worn-out one
+                -- follows the condition, and a burnt one ("fire") is Can's
+                -- rule, 2026-09-27: "After a fire it stays where it is,
+                -- stopped with FAULT; a repair clears it."
+                copy.feeds, copy.run, copy.since = nil, nil, nil
+                if copy.fault ~= "fault" and copy.fault ~= "fire" then copy.fault = nil end
+                copy.wear, copy.rest, copy.at, copy.auto, copy.bf = nil, nil, nil, nil, nil
+                -- A controller keeps its generator Auto switch and levels
+                -- (bkAuto, bkStart, bkStop) but not its backups' mirror, the
+                -- sun timer or the GEN figures: its units are released with
+                -- the system, and the next tick writes the rest.
+                copy.bkMirror, copy.bkSunSince, copy.bkCap, copy.bkW = nil, nil, nil, nil
+                copy.bkN, copy.bkStartNow, copy.bkStopNow = nil, nil, nil
             end
             -- The loop above drops every table, which is right for `wire` and
             -- wrong for the cells. It has always been wrong for them: the old
@@ -1225,6 +1418,26 @@ if Events then
     if Events.OnTick then Events.OnTick.Add(onTick) end
 end
 
+-- Vanilla's generator actions after a conversion. A queued Turn on, Add fuel,
+-- Repair, Plug in or Take names its generator by square and object index, and
+-- on a server complete() runs without the Lua isValid (NetTimedAction.isValid
+-- is a stub). So a request the server parsed before the generator became a
+-- backup still holds the removed generator, and one parsed after it holds
+-- whatever took that index: the backup itself, or a part beside it.
+-- Unguarded, vanilla would start its own power circle on a generator that is
+-- no longer in the world, turn its tank into an item, eat a Scrap Electronics
+-- or drop the player's heavy items. Each of these completes as a no-op unless
+-- it still points at a generator standing on its square.
+
+--- Does this vanilla generator action still point at a generator in the
+--  world: a real IsoGenerator with an object index on its square?
+function G.liveGenerator(action)
+    local gen = type(action) == "table" and action.generator or nil
+    if gen == nil or not instanceof(gen, "IsoGenerator") then return false end
+    local at = try(gen, "getObjectIndex")
+    return type(at) == "number" and at >= 0
+end
+
 -- Vanilla's generator Take, on a controller. The context menu strips the
 -- Generator submenu, but the Java menu also builds it from the FLOOR a
 -- controller stands on and from the joypad prompt, and a Take lifts the
@@ -1244,12 +1457,28 @@ if ISTakeGenerator then
     local origTakeComplete = ISTakeGenerator.complete
     if origTakeComplete then
         function ISTakeGenerator:complete(...)
-            if self.generator and P.partOf(self.generator) == "controller" then
+            if not G.liveGenerator(self) then return true end
+            if P.partOf(self.generator) == "controller" then
                 return true
             end
             return origTakeComplete(self, ...)
         end
     end
 end
+
+--- The same guard on the generator actions with no Off-Grid rule of their
+--  own. Every argument is handed on (the `...`).
+local function skipStale(cls)
+    if not cls or not cls.complete then return end
+    local orig = cls.complete
+    function cls:complete(...)
+        if not G.liveGenerator(self) then return true end
+        return orig(self, ...)
+    end
+end
+skipStale(ISActivateGenerator)
+skipStale(ISAddFuel)
+skipStale(ISFixGenerator)
+skipStale(ISPlugGenerator)
 
 return G

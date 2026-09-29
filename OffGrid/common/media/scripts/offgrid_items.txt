@@ -233,6 +233,66 @@ module Base
         Tags                = base:heavyitem;base:hasmetal;base:showcondition,
     }
 
+    item OffGridBackupValuTech
+    {
+        DisplayName         = Backup Generator (ValuTech),
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 30.0,
+        Icon                = OffGridBackupValuTech,
+        WorldObjectSprite   = offgrid_01_241,
+        ConditionMax        = 100,
+        MetalValue          = 250.0,
+        Tooltip             = Tooltip_OffGridBackupValuTech,
+        RequiresEquippedBothHands = true,
+        Tags                = base:heavyitem;base:hasmetal;base:showcondition,
+    }
+
+    item OffGridBackupOld
+    {
+        DisplayName         = Backup Generator (Old),
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 40.0,
+        Icon                = OffGridBackupOld,
+        WorldObjectSprite   = offgrid_01_249,
+        ConditionMax        = 100,
+        MetalValue          = 300.0,
+        Tooltip             = Tooltip_OffGridBackupOld,
+        RequiresEquippedBothHands = true,
+        Tags                = base:heavyitem;base:hasmetal;base:showcondition,
+    }
+
+    item OffGridBackupLectromax
+    {
+        DisplayName         = Backup Generator (Lectromax),
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 40.0,
+        Icon                = OffGridBackupLectromax,
+        WorldObjectSprite   = offgrid_01_257,
+        ConditionMax        = 100,
+        MetalValue          = 300.0,
+        Tooltip             = Tooltip_OffGridBackupLectromax,
+        RequiresEquippedBothHands = true,
+        Tags                = base:heavyitem;base:hasmetal;base:showcondition,
+    }
+
+    item OffGridBackupPremium
+    {
+        DisplayName         = Backup Generator (Premium Technologies),
+        DisplayCategory     = Electronics,
+        ItemType            = base:moveable,
+        Weight              = 40.0,
+        Icon                = OffGridBackupPremium,
+        WorldObjectSprite   = offgrid_01_265,
+        ConditionMax        = 100,
+        MetalValue          = 300.0,
+        Tooltip             = Tooltip_OffGridBackupPremium,
+        RequiresEquippedBothHands = true,
+        Tags                = base:heavyitem;base:hasmetal;base:showcondition,
+    }
+
     /* The controller is the piece that actually delivers power, and the only
        way to do that in B42 is to be a real IsoGenerator: a square is powered
        iff chunk.isGeneratorPoweringSquare() finds an activated generator in

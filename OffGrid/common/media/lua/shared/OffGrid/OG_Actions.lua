@@ -375,6 +375,13 @@ function OG_ResetBreaker:complete()
     local info = P.describe(self.object)
     if not info then return true end
     if info.kind ~= "controller" then return true end
+    -- The switch is its owner's group's (Can, 2026-09-29: "Lock them in
+    -- 3.0.0"): the controller's pick-up lock, asked here on the authority
+    -- before anything is written, and told to a player it refuses. The menu
+    -- rows and the monitor's knob are greyed for him already; this is the
+    -- gate for a stale menu or a client that queues the action anyway.
+    local G = OffGrid.Place
+    if G and G.mayUse and not G.mayUse(self.character, self.object) then return true end
     -- A controller dropped on the floor was never set up (OG_Place.G.adopt);
     -- switching it on is where a player finds that out, so take charge first.
     if OffGrid.Place and OffGrid.Place.adopt then OffGrid.Place.adopt(self.object) end

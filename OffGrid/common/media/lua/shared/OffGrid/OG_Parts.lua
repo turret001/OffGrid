@@ -45,6 +45,8 @@ P.SANDBOX_DEFAULTS = {
     RealisticMode = false,
     RigChance = 15,
     BarnStockChance = 2,
+    BackupFuelUse = 1.0,
+    AllowBackup = true,
 }
 
 --- A sandbox option's value, or its declared default while SandboxVars does
@@ -74,6 +76,19 @@ function P.foreignSandbox(page)
     return sv
 end
 
+--- Vanilla's Generator Fuel Consumption: the top-level sandbox multiplier a
+--  normal generator's hourly burn is scaled by (SandboxVars.
+--  GeneratorFuelConsumption, not a page of ours). A backup generator bills
+--  the same appliances the same way, so it reads the same number. 0.1,
+--  vanilla's default, when it is absent or not a number (the main menu, a
+--  hand-edited file); 0 stays 0, which is free fuel in vanilla too. Read here
+--  so this file stays the one place that touches SandboxVars.
+function P.generatorFuelConsumption()
+    local v = SandboxVars and SandboxVars.GeneratorFuelConsumption
+    if type(v) ~= "number" then return 0.1 end
+    return v
+end
+
 --- The bank capacity multiplier, and the only reader of it. Installing and
 --  removing batteries, the simulation, the seeder and every panel must agree
 --  on how big a rack is, or a charge is kept against one capacity and handed
@@ -94,14 +109,16 @@ P.FACING_INDEX = { E = 0, S = 1, W = 2, N = 3 }
 
 -- APPEND ONLY, and in the same order as og_taxonomy.py: a sprite index is
 -- row * COLS + facing, so a kind inserted anywhere but the end repoints
--- every object already standing in a save.
-P.KINDS = { "array", "bank", "controller", "transformer", "lamp" }
+-- every object already standing in a save. The backup generators
+-- (2026-09-27) were appended after the lamps.
+P.KINDS = { "array", "bank", "controller", "transformer", "lamp", "backup" }
 P.MOUNTS = {
     array = { "ground", "flat" },
     bank = { "ground", "wall" },
     controller = { "ground" },
     transformer = { "ground" },
     lamp = { "ground" },
+    backup = { "ground" },
 }
 P.TIERS = {
     array = { "makeshift", "standard", "premium" },
@@ -109,12 +126,15 @@ P.TIERS = {
     controller = { "basic", "mppt" },
     transformer = { "standard" },
     lamp = { "garden", "street" },
+    -- one per vanilla brand, in og_taxonomy's order
+    backup = { "valutech", "old", "lectromax", "premium" },
 }
 P.STATES = {
     array = { "clear", "snow", "cracked" },
     controller = { "off", "on" },
     transformer = { "off", "on" },
     lamp = { "off", "on" },
+    backup = { "off", "on" },
     -- bank has no flat list: see P.statesFor.
 }
 
@@ -220,6 +240,12 @@ P.ITEM = {
         ground = { garden = "Base.OffGridGardenLamp",
                    street = "Base.OffGridStreetLamp" },
     },
+    backup = {
+        ground = { valutech  = "Base.OffGridBackupValuTech",
+                   old       = "Base.OffGridBackupOld",
+                   lectromax = "Base.OffGridBackupLectromax",
+                   premium   = "Base.OffGridBackupPremium" },
+    },
 }
 
 --- Every item record the mod declares, for the boot self-check.
@@ -324,6 +350,20 @@ end
 function P.partOf(obj)
     local info = P.describe(obj)
     return info and info.kind or nil
+end
+
+--- A controller tile on something that is not a controller: scenery.
+--
+--  A real controller is always an IsoGenerator (G.makeController builds one
+--  for every placement). The admin Brush Tool paints a bare IsoObject with a
+--  controller's sprite, and a map could carry one; S.register never counts
+--  it, and the menus grey its rows with the reason (Can, 2026-09-29: "Say
+--  it's scenery"). Where the engine's instanceof is absent (a headless
+--  check) nothing is taken for paint.
+function P.isPainted(obj)
+    if P.partOf(obj) ~= "controller" then return false end
+    if not instanceof then return false end
+    return not instanceof(obj, "IsoGenerator")
 end
 
 --- The running generators on a square: the first one that is NOT an Off-Grid
@@ -553,6 +593,14 @@ function P.data(obj)
         if d.lastHour == nil then d.lastHour = -1 end
         if d.load == nil then d.load = 0 end
         if d.trip == nil then d.trip = false end
+    elseif info.kind == "backup" then
+        -- The floor for a unit that arrives without its fields; conversion
+        -- and placement write the real ones. Tested against nil, never with
+        -- `or`: a player's AUTO off is a false that has to survive every touch.
+        if d.fuel == nil then d.fuel = 0 end
+        if d.condition == nil then d.condition = 100 end
+        if d.auto == nil then d.auto = true end
+        if d.run == nil then d.run = "off" end
     end
     return d
 end
@@ -818,6 +866,31 @@ function P.txt(key, ...)
         s = string.gsub(s, "{" .. i .. "}", v)
     end
     return s
+end
+
+--- The colour a refusal note is drawn in above the character: orange-red,
+--  one constant for every refusal Off-Grid shows (Can, 2026-09-29, "Red/
+--  orange (Recommended)", over the game's default green). A note that is
+--  news, not a refusal, keeps the game's own colour. NOTE_TIME is the
+--  engine's own display time (IsoGameCharacter.haloDispTime, 128), which
+--  the coloured overload sets for every later note too, so it is passed
+--  unchanged.
+P.NOTE_WARN = { r = 255, g = 96, b = 48 }
+P.NOTE_TIME = 128
+
+--- Put `text` above a character, as a refusal (`warn`, in P.NOTE_WARN) or
+--  as news (the game's colour). The one place the mod calls setHaloNote:
+--  setHaloNote(String, int, int, int, float) is on ILuaGameCharacter in
+--  42.20.4 and 42.21 alike (tools/.jarindex-*.json), and vanilla's own
+--  moveables call it that way (ISMoveableSpriteProps.lua).
+function P.haloNote(character, text, warn)
+    if not character or not character.setHaloNote or text == nil then return end
+    if warn then
+        local c = P.NOTE_WARN
+        character:setHaloNote(tostring(text), c.r, c.g, c.b, P.NOTE_TIME)
+    else
+        character:setHaloNote(tostring(text))
+    end
 end
 
 --- A counted phrase: "1 bank", "2 banks".

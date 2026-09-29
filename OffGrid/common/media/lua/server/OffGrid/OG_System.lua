@@ -55,6 +55,9 @@ function S.resetState()
     S.pendingUnplug = {}    -- root -> set of node keys lifted while it was away
     toxicCheck = {}
     sprinklerGen = {}
+    -- The backup generators' memory (OG_BackupSys). Nil while this file loads:
+    -- OG_BackupSys requires it before making its table, and resets itself.
+    if OffGrid.BackupSys and OffGrid.BackupSys.resetState then OffGrid.BackupSys.resetState() end
 end
 S.resetState()
 
@@ -155,13 +158,23 @@ end
 --- The live object of `kind` on a square, or nil. The second value says
 --  whether the square is in memory: nil-and-loaded means the part is gone,
 --  nil-and-not-loaded means nobody can tell.
+--
+--  A controller is only ever a real IsoGenerator (see S.register). A plain
+--  object wearing a controller tile (an admin's Brush Tool paint on a server,
+--  a map tile) is scenery and is passed over here too: a controller dropped
+--  on such a square lands ABOVE it (IsoGridSquare.AddSpecialObject appends),
+--  and returning the tile first had the tick drive it as a generator, a
+--  setCondition error every game minute.
 local function objectOn(x, y, z, kind)
     local sq = getSquare(x, y, z)
     if not sq then return nil, chunkLoaded(x, y, z) end
     local objs = sq:getObjects()
     for i = 0, objs:size() - 1 do
         local o = objs:get(i)
-        if P.partOf(o) == kind then return o, true end
+        if P.partOf(o) == kind
+                and (kind ~= "controller" or instanceof(o, "IsoGenerator")) then
+            return o, true
+        end
     end
     return nil, true                              -- loaded, and it is gone
 end
@@ -292,6 +305,18 @@ local function releaseClaim(nk, root)
         -- system's tick turns it off. One left behind by a lift upstream kept
         -- it lit with nothing behind it (live, 2026-09-24).
         if kind == "transformer" then P.setState(obj, "off") end
+        -- A backup generator runs only for the controller it is cabled to, so
+        -- losing the link stops it, whatever took the link: a cut, the
+        -- controller lifted, destroyed or replaced, a prune, a stale claim
+        -- healed on stream-in. A fault the next link judges again (no fuel,
+        -- indoors, off by server) goes with it; a fire or a worn-out FAULT
+        -- stays until a repair, or re-cabling would mend a burnt unit.
+        if kind == "backup" then
+            pd.run = "off"
+            pd.since = nil
+            if pd.fault ~= "fire" and pd.fault ~= "fault" then pd.fault = nil end
+            P.setState(obj, "off")
+        end
         sync(obj)
     end
 end
@@ -388,7 +413,9 @@ end
 -- clippedToday on every tick until 2026-09-14 (see gather), and the day roll
 -- copied it on into clippedPrev.
 local LEDGER_FIELDS = { "clippedToday", "clippedPrev", "shedToday", "shedPrev",
-                        "equaliseToday" }
+                        "equaliseToday",
+                        -- the backup generators' Wh and litres (OG_BackupSys)
+                        "bkWhToday", "bkWhPrev", "bkFuelToday", "bkFuelPrev" }
 
 --- Take note of an Off-Grid object as its chunk streams in.
 function S.register(obj)
@@ -398,6 +425,14 @@ function S.register(obj)
     if not info then return end
     -- A solar lamp is never part of a system (OG_Lamps).
     if info.kind == "lamp" then return end
+    -- A controller is always a real IsoGenerator: G.makeController builds
+    -- one for every placement. A plain object wearing a controller tile is
+    -- scenery. The admin Brush Tool paints one on a server (the engine
+    -- builds a bare IsoObject and fires no Lua for it), and a map could
+    -- carry one. Taken for a controller when its chunk loaded, it had
+    -- driveGenerator call gen:setCondition on it every game minute, a Lua
+    -- error a minute in server-console.txt (live on 42.21, 2026-09-28).
+    if info.kind == "controller" and not instanceof(obj, "IsoGenerator") then return end
     P.data(obj)
     local k = key(sq:getX(), sq:getY(), sq:getZ())
 
@@ -434,8 +469,11 @@ function S.register(obj)
                              -- had, not at zero for the ~41 replayed hours the
                              -- sliced scan needs to publish its first figure.
                              load = d.demand or 0,
+                             -- and the engine units a backup bills that
+                             -- load at, kept beside it (updateController)
+                             loadUnits = tonumber(d.demandUnits) or 0,
                              scanCold = 0, cold = d.coldWatts or 0,
-                             arrays = {}, banks = {}, xfmrs = {},
+                             arrays = {}, banks = {}, xfmrs = {}, backups = {},
                              -- Its first sweep publishes as it goes (see
                              -- S.scanSlice), and its appliance list too when
                              -- the save carries none.
@@ -548,7 +586,7 @@ end
 function S.relink(rec)
     local ctrl = objectOn(rec.x, rec.y, rec.z, "controller")
     if not ctrl then
-        rec.arrays, rec.banks, rec.xfmrs = {}, {}, {}
+        rec.arrays, rec.banks, rec.xfmrs, rec.backups = {}, {}, {}, {}
         rec.relinkAt = E.worldHours()
         return
     end
@@ -624,13 +662,14 @@ function S.relink(rec)
     for n = 1, #gone do wire = M.wireDrop(wire, gone[n]) end
     setWire(ctrl, root, wire)
 
-    local arrays, banks, xfmrs = {}, {}, {}
+    local arrays, banks, xfmrs, backups = {}, {}, {}, {}
     for n = 1, #order do
         local hit = objOf[order[n]]
         if hit then
             if hit.kind == "array" then arrays[#arrays + 1] = hit.obj
             elseif hit.kind == "bank" then banks[#banks + 1] = hit.obj
-            elseif hit.kind == "transformer" then xfmrs[#xfmrs + 1] = hit.obj end
+            elseif hit.kind == "transformer" then xfmrs[#xfmrs + 1] = hit.obj
+            elseif hit.kind == "backup" then backups[#backups + 1] = hit.obj end
             if hit.kind ~= "controller" then
                 local pd = P.data(hit.obj)
                 if pd.sys ~= root then
@@ -659,11 +698,15 @@ function S.relink(rec)
     rec.arrays = arrays
     rec.banks = banks
     rec.xfmrs = xfmrs
+    rec.backups = backups
     rec.far = far
     rec.relinkAt = E.worldHours()
     -- What the system adds beyond the controller's own circle -- transformer
     -- circles and wired buildings -- follows what the walk just found.
     if OffGrid.Distrib then OffGrid.Distrib.onRelink(rec, ctrl) end
+    -- And the backup generators' mirror forgets the units the walk no longer
+    -- reaches (OG_BackupSys).
+    if OffGrid.BackupSys then OffGrid.BackupSys.onRelink(rec, ctrl) end
 end
 
 --------------------------------------------------------- making a connection
@@ -733,6 +776,17 @@ local function resolveEnds(playerObj, args)
              ax = ax, ay = ay, az = az, bx = bx, by = by, bz = bz }
 end
 
+--- May this player change `obj`'s wiring or use its switch? The part's
+--  pick-up lock (Can, 2026-09-29: "Lock them in 3.0.0", and "Lock it too"
+--  for a cable to a backup), OG_Place's G.mayUse, which tells a player it
+--  refuses why. No player is the authority's own call; with OG_Place not
+--  loaded nobody is refused, the rule every lock here keeps.
+local function usable(playerObj, obj)
+    local G = OffGrid.Place
+    if not (playerObj and G and G.mayUse) then return true end
+    return G.mayUse(playerObj, obj)
+end
+
 --- Take a part out of every graph that holds it. Called when a part is
 --  picked up (OG_Place), while it is still on its square.
 --
@@ -775,6 +829,15 @@ function S.connect(playerObj, args)
     local e, err = resolveEnds(playerObj, args)
     if not e then return false, err end
 
+    -- Both ends' owner's group (Can, 2026-09-29: "Lock them in 3.0.0"; a
+    -- backup's included, "Lock it too"): a cable changes the wiring of the
+    -- loose end and of the part it lands on. Asked before any other reason,
+    -- and one note for one press (the second end is not asked once the
+    -- first refuses).
+    if not usable(playerObj, e.a) or not usable(playerObj, e.b) then
+        return false, "locked"
+    end
+
     if not M.wireLegal(e.ak, e.bk) then return false, "kinds do not connect" end
     if systemOf(e.a, e.ak, e.akey) then return false, "already in a system" end
 
@@ -810,6 +873,23 @@ function S.connect(playerObj, args)
         return false, "target is not in a system"
     end
     local nodes = nodesOf(M.wireParse(base))
+    -- At most four backup generators per controller (OG_Backup MAX_UNITS),
+    -- counted on the graph without the source's own old edges, so a unit
+    -- being re-cabled is not held against itself. The menu greys the row
+    -- already; this is the gate, and COMMANDS.connect only logs the reason,
+    -- so the note is all the player hears of it.
+    if e.ak == "backup" then
+        local cap = OffGrid.Backup and OffGrid.Backup.MAX_UNITS or 4
+        local units = 0
+        for nk in pairs(nodes) do
+            local _, _, _, kind = M.parseNodeKey(nk)
+            if kind == "backup" then units = units + 1 end
+        end
+        if units >= cap then
+            if OffGrid.BackupSys then OffGrid.BackupSys.note(playerObj, "IGUI_OffGrid_BkFull") end
+            return false, "backup limit"
+        end
+    end
     nodes[sys] = true
     local count = 0
     for _ in pairs(nodes) do count = count + 1 end
@@ -841,6 +921,14 @@ end
 function S.disconnect(playerObj, args)
     local e, err = resolveEnds(playerObj, args)
     if not e then return false, err end
+
+    -- A cable is its ends' owners' groups' to cut, from either end: a
+    -- backup generator's first (Can, 2026-09-29, "Owner's group only"), and
+    -- since the rig lock every part's ("Lock them in 3.0.0"). Both parts'
+    -- wiring changes, so both locks are asked, and the player is told why.
+    if not usable(playerObj, e.a) or not usable(playerObj, e.b) then
+        return false, "locked"
+    end
 
     -- Either end may name the system. Try both: a part left wired into two
     -- graphs by an older build carries only one of them in its claim, and
@@ -898,15 +986,18 @@ local function readSquare(rec, x, y, z)
         return 0, 0
     end
 
-    local w, cold = 0, 0
+    local w, cold, units = 0, 0, 0
     local kinds, idle = nil, nil
     local objs = s:getObjects()
     for i = 0, objs:size() - 1 do
         -- Locals, deliberately. A Lua multi-return collapses to its first
         -- value anywhere but the final argument slot, so folding this into the
         -- addition below would silently drop the rest.
-        local ow, isCold, kk, rated = objectDraw(objs:get(i))
+        local ow, isCold, kk, rated, ou = objectDraw(objs:get(i))
         w = w + ow
+        -- The engine's own fuel units for what it bills: what a backup
+        -- generator is charged for serving this square (OG_BackupSys).
+        units = units + (ou or 0)
         if isCold then cold = cold + ow end
         if ow > 0 then
             kinds = kinds or {}
@@ -928,7 +1019,7 @@ local function readSquare(rec, x, y, z)
         -- The kind split rides in the same cache, so squares in unloaded
         -- chunks keep their itemised entry on the LOADS page, exactly as they
         -- keep their watts in the total.
-        rec.drawn[k] = { w = w, cold = cold, kinds = kinds, idle = idle }
+        rec.drawn[k] = { w = w, cold = cold, u = units, kinds = kinds, idle = idle }
     else
         rec.drawn[k] = nil
     end
@@ -939,15 +1030,18 @@ end
 --  is exactly what a completed sweep accumulates into `rec.scanLoad`, because
 --  every square the sweep visits leaves its entry here and an unloaded one
 --  keeps the entry it had. That is what lets a targeted re-read republish a
---  correct total without waiting for the sweep to come round again.
+--  correct total without waiting for the sweep to come round again. The third
+--  value is the engine units of all of it, a backup generator's bill; the
+--  callers that take two values are unaffected.
 --- What the cache adds up to, without publishing anything.
 local function cacheTotals(rec)
-    local total, coldTotal = 0, 0
+    local total, coldTotal, unitsTotal = 0, 0, 0
     for _, e in pairs(rec.drawn) do
         total = total + (e.w or 0)
         coldTotal = coldTotal + (e.cold or 0)
+        unitsTotal = unitsTotal + (e.u or 0)
     end
-    return total, coldTotal
+    return total, coldTotal, unitsTotal
 end
 
 local function foldKinds(rec)
@@ -1559,7 +1653,7 @@ end
 --  while the real one sat full. getObjectIndex is -1 for anything no longer in
 --  its square's list (IsoObject.java:4839).
 function S.staleLinks(rec)
-    local lists = { rec.arrays or {}, rec.banks or {}, rec.xfmrs or {} }
+    local lists = { rec.arrays or {}, rec.banks or {}, rec.xfmrs or {}, rec.backups or {} }
     for l = 1, #lists do
         local list = lists[l]
         for i = 1, #list do
@@ -1605,8 +1699,15 @@ local function recordShed(rec, d, sys, tel, now, replay)
     -- event, so it wins: letting the close clear the stamp after it left a
     -- REAL shed unstamped, and the forced-shed release in updateController
     -- let the load back on at any charge on the next tick.
+    --
+    -- A shed that opens with no capacity (a backup generator running dry on
+    -- a rig with no cells) is not stamped: there is no bank to protect, and
+    -- cells fitted later are released at once, as from any forced shed. A
+    -- stamp already written is kept through a tick with no cells, so cells
+    -- pulled out and put back drained still wait for the reconnect point
+    -- (final review, 2026-09-28).
     if tel.lvdOpened then
-        d.lvdAt = now
+        d.lvdAt = ((tel.capacity or 0) > 0) and now or nil
     elseif tel.lvdClosed or not d.lvd then
         d.lvdAt = nil
     end
@@ -1647,6 +1748,9 @@ local function rollLedger(d)
     d.shedPrev = d.shedToday or 0
     d.clippedToday, d.shedToday = 0, 0
     d.equaliseToday = 0
+    d.bkWhPrev = d.bkWhToday or 0
+    d.bkFuelPrev = d.bkFuelToday or 0
+    d.bkWhToday, d.bkFuelToday = 0, 0
     -- The DAY trace clears HERE and nowhere later: any later "did the day
     -- change" test would compare against the ledgerDay this just updated.
     d.dayHist = {}
@@ -1807,13 +1911,21 @@ end
 --  the hold, which keeps a bank too small for one minute of its load to two
 --  flips in six minutes. A forced shed (no cells) keeps the debounce; it has
 --  no bank to protect.
+--
+--  A running backup generator is a supply of its own (tel.backupCap, what
+--  the running set could give this step): with one running the house is
+--  powered with no cells and at night, as with a charged bank (2026-09-27).
+--  A shed opened this tick with no cells (the generator ran dry under the
+--  load) is not stamped, but it still cuts at once: that load is not billed
+--  either (final review, 2026-09-28).
 local function holdPower(d, bank, tel)
-    if d.lvd and d.lvdAt ~= nil then
+    if d.lvd and (d.lvdAt ~= nil or tel.lvdOpened) then
         d.poweredWant, d.poweredHold, d.powered = false, 0, false
         return false
     end
-    local want = (d.online and not d.lvd and (bank.cells > 0)
-                  and (tel.arrayWatts > 0 or (bank.charge or 0) > 0)) and true or false
+    local bkCap = tel.backupCap or 0
+    local want = (d.online and not d.lvd and ((bank.cells > 0) or bkCap > 0)
+                  and (tel.arrayWatts > 0 or (bank.charge or 0) > 0 or bkCap > 0)) and true or false
     if want ~= d.poweredWant then
         d.poweredWant = want
         d.poweredHold = 0
@@ -1892,6 +2004,30 @@ function S.updateController(rec, dt, hoursAgo, wet)
     -- burning square and the switch-off action both overrule on the object
     -- itself. A replay has no record of it and bills as powered.
     if not replay then sys.powered = try(gen, "isActivated") == true end
+    -- What a backup generator serving this load is billed for, as a normal
+    -- generator bills it: the engine's own fuel units of every appliance the
+    -- scan counts (cached per square beside its watts, readSquare), and the
+    -- watts that have none, the transformers' standing loss. Handed over on
+    -- `sys`; OG_BackupSys reads them there and never reaches back into this
+    -- file for them. `rec.drawn` exists from the first scan slice on.
+    --
+    -- Until a record's first sweep has been all the way round, the cache is
+    -- only the part of the cylinder it has walked, so the units follow the
+    -- watts' rule (S.scanSlice): they may rise to what has been seen and
+    -- never fall below what the controller kept (d.demandUnits, seeded in
+    -- S.register). Summed from the cache alone, the first ~41 replayed hours
+    -- after a restart billed the watts in full and their petrol at a
+    -- fraction of vanilla's rate (final review, 2026-09-28). The sweep that
+    -- completes in this call has set rec.swept already, and publishes the
+    -- true figure.
+    local units = rec.loadUnits or 0
+    if rec.drawn then
+        local _, _, n = cacheTotals(rec)
+        units = rec.swept and n or math.max(units, n)
+    end
+    rec.loadUnits = units
+    sys.loadUnitsIn = simLoad and units or 0
+    sys.lossIn = simLoad and loss or 0
     -- Nothing to draw from (no bank wired, or a rack with no cells) means
     -- the load is shed, not billed. The want-predicate never powers such a
     -- system, so charging its non-existent bank for the load was a trip a
@@ -1902,10 +2038,23 @@ function S.updateController(rec, dt, hoursAgo, wet)
     -- waits for the reconnect threshold; a forced one never had a bank to
     -- run down, and holding it to 25% left a rig with fresh cells and no
     -- load dark in full sun until the bank crept up.
-    if (bank.capacity or 0) <= 0 then
-        sys.lvd = true
-    elseif sys.lvd and d.lvdAt == nil then
+    --
+    -- The release comes first and the forcing last, with the backup
+    -- generators' turn between them (OG_BackupSys): Auto reads the shed as
+    -- the release leaves it, where only a REAL shed counts, and a running
+    -- generator is something to draw from, so a rig with no cells that one
+    -- is serving is not forced dark. The forcing leaves the stamp alone: a
+    -- generator running dry on such a rig opens a shed recordShed does not
+    -- stamp (no capacity), and a REAL shed's stamp has to outlive the
+    -- cells being out for a tick, or the same drained cells put back were
+    -- let straight back on (final review, 2026-09-28).
+    if (bank.capacity or 0) > 0 and sys.lvd and d.lvdAt == nil then
         sys.lvd = false
+    end
+    local BK = OffGrid.BackupSys
+    local bk = BK and BK.before(rec, gen, d, sys, bank, env, dt, hoursAgo, now)
+    if (bank.capacity or 0) <= 0 and not (bk and bk.running > 0) then
+        sys.lvd = true
     end
 
     -- A catch-up replay carries no weather history: it moves the sun back
@@ -1933,6 +2082,7 @@ function S.updateController(rec, dt, hoursAgo, wet)
     recordShed(rec, d, sys, tel, now, replay)
 
     d.demand = sys.load
+    d.demandUnits = sys.loadUnitsIn
     d.gen = tel.arrayWatts
     d.soc = tel.soc
     d.capacity = tel.capacity
@@ -1952,6 +2102,9 @@ function S.updateController(rec, dt, hoursAgo, wet)
     runEqualise(rec, d, env, tel, dt, sliceToday)
     d.clippedToday = (d.clippedToday or 0) + (tel.wasted or 0)
     d.shedToday = (d.shedToday or 0) + (tel.deficit or 0)
+    -- The backup generators settle what the step billed them, after the
+    -- day's roll so their Wh and litres land in the day they were burned.
+    local bkChanged = bk and BK.after(rec, gen, d, bk, tel, env, dt, hoursAgo, now, sliceToday)
 
     writeColdChain(d, bank, env, simLoad and (rec.cold or 0) or 0)
     d.arrayCount = #rec.arrays
@@ -1973,6 +2126,8 @@ function S.updateController(rec, dt, hoursAgo, wet)
             online = d.online and not d.trip, lvd = d.lvd == true, lvdAt = d.lvdAt,
             eff = ctrl.eff, harvest = ctrl.harvest,
             powered = d.powered, want = d.poweredWant, hold = d.poweredHold,
+            -- its backup generators, as copies (OG_BackupSys.snapshot)
+            backup = bk and BK.snapshot(rec, d, bk),
         })
     end
     -- What the system is actually SERVING, which is nothing while it is
@@ -1997,14 +2152,17 @@ function S.updateController(rec, dt, hoursAgo, wet)
     -- A shed changing hands is pushed at once, whichever way it changed: a
     -- forced shed raises neither telemetry flag, so a Reset (which clears
     -- d.lvd) followed by the forcing putting it straight back showed the
-    -- wrong state on every client for up to ten minutes.
+    -- wrong state on every client for up to ten minutes. So is a backup
+    -- generator starting, stopping or taking a fault: GEN and the unit's own
+    -- menu read the controller and the unit.
     if visualChanged or tel.lvdOpened or tel.lvdClosed
-            or (d.lvd == true) ~= lvdBefore or rec.syncIn <= 0 then
+            or (d.lvd == true) ~= lvdBefore or rec.syncIn <= 0 or bkChanged then
         rec.syncIn = SYNC_EVERY
         sync(gen)
         for i = 1, #rec.arrays do sync(rec.arrays[i]) end
         for i = 1, #rec.banks do sync(rec.banks[i]) end
         for i = 1, #(rec.xfmrs or {}) do sync(rec.xfmrs[i]) end
+        for i = 1, #(rec.backups or {}) do sync(rec.backups[i]) end
     end
 end
 
@@ -2122,6 +2280,9 @@ end
 function COMMANDS.equalise(playerObj, args)
     local obj = commandTarget(playerObj, args, "controller")
     if not obj then return end
+    -- The controller's owner's group only (Can, 2026-09-29: "Lock them in
+    -- 3.0.0"), asked before anything is written.
+    if not usable(playerObj, obj) then return end
     if OffGrid.Place and OffGrid.Place.adopt then OffGrid.Place.adopt(obj) end
     local d = P.data(obj)
     d.equalise = args.on and true or false
@@ -2139,6 +2300,33 @@ end
 
 function COMMANDS.bwPick(playerObj, args)
     if OffGrid.Distrib then OffGrid.Distrib.cmdPick(playerObj, args) end
+end
+
+-- Backup generators (OG_BackupSys). The GEN page and a unit's menu send these
+-- from an OG_BackupPanel's completion on the authority; a client may also
+-- send them itself, and OG_BackupSys validates them the same either way.
+function COMMANDS.bkMaster(playerObj, args)
+    if OffGrid.BackupSys then OffGrid.BackupSys.cmdMaster(playerObj, args) end
+end
+
+function COMMANDS.bkLevelStart(playerObj, args)
+    if OffGrid.BackupSys then OffGrid.BackupSys.cmdLevel(playerObj, args, "start") end
+end
+
+function COMMANDS.bkLevelStop(playerObj, args)
+    if OffGrid.BackupSys then OffGrid.BackupSys.cmdLevel(playerObj, args, "stop") end
+end
+
+function COMMANDS.bkAuto(playerObj, args)
+    if OffGrid.BackupSys then OffGrid.BackupSys.cmdAuto(playerObj, args) end
+end
+
+function COMMANDS.bkRun(playerObj, args)
+    if OffGrid.BackupSys then OffGrid.BackupSys.cmdRun(playerObj, args) end
+end
+
+function COMMANDS.bkFeedCut(playerObj, args)
+    if OffGrid.BackupSys then OffGrid.BackupSys.cmdFeedCut(playerObj, args) end
 end
 
 --- Entry point for both paths. Returns true if the command was known.
@@ -2181,17 +2369,25 @@ Events.OnTick.Add(clearToxicFast)
 --- A fire starting on a controller's square: take the fuel off before the
 --  first BurnWalls runs (the event fires inside IsoFire's constructor,
 --  IsoFire.java:250). driveGenerator keeps it at zero while the square burns.
+--  A backup generator on the square stops with FAULT; OG_BackupSys does that,
+--  handed the square once per fire.
 local function onNewFire(fire)
     local sq = fire and try(fire, "getSquare")
     local objs = sq and sq.getObjects and sq:getObjects()
     if not objs then return end
+    local backup = false
     for i = 0, objs:size() - 1 do
         local o = objs:get(i)
-        if P.partOf(o) == "controller" then
+        local part = P.partOf(o)
+        if part == "controller" then
             if (try(o, "getFuel") or 0) ~= 0 then o:setFuel(0) end
             if try(o, "isActivated") then o:setActivated(false) end
+        elseif part == "backup" then
+            backup = true
         end
     end
+    local BK = OffGrid.BackupSys
+    if backup and BK then BK.onFire(sq) end
 end
 Events.OnNewFire.Add(onNewFire)
 

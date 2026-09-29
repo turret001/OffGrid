@@ -62,6 +62,26 @@ local function send(playerObj, command, args)
     end
 end
 
+--- Why this player may not change what the part wires, or nil: the part's
+--  pick-up lock (Can, 2026-09-29: "Lock them in 3.0.0"), OG_Place's
+--  G.useRefusal, the question the authority asks again (OG_Distrib). The
+--  picker opens only from Choose buildings..., which is greyed with it, so
+--  this is a player whose lock changed while the picker was up.
+local function lockOf(st)
+    local G = OffGrid.Place
+    if not (st and st.player and st.part and G and G.useRefusal) then return nil end
+    return G.useRefusal(st.player, P.try(st.part, "getSquare"), st.part)
+end
+
+--- A click the lock refuses: the reason above the player, in the warning
+--  colour, and nothing sent. True when refused.
+local function refused(st)
+    local why = lockOf(st)
+    if not why then return false end
+    P.haloNote(st.player, getText(why), true)
+    return true
+end
+
 local function range()
     local I = OffGrid.Interop
     local r = I and I.generatorRange and I.generatorRange() or 20
@@ -355,7 +375,7 @@ function K.onMouseDown()
         if player and stillValid(st, player) then
             local z = floor(player:getZ())
             local sx, sy = K.mouseSquare(pn, z)
-            if sx then
+            if sx and not refused(st) then
                 send(player, "bwPick", { x = st.x, y = st.y, z = st.z, kind = st.kind,
                                          sx = sx, sy = sy, sz = z })
                 st.hoverKey = nil
@@ -409,7 +429,7 @@ end
 
 function OG_Picker:onClear()
     local st = self.state
-    if st and st.player then
+    if st and st.player and not refused(st) then
         send(st.player, "bwClear", { x = st.x, y = st.y, z = st.z, kind = st.kind })
     end
 end
@@ -452,7 +472,13 @@ function OG_Picker:prerender()
         self:drawText("  " .. describe(list[n]), PAD, y, GREEN[1], GREEN[2], GREEN[3], 1, UIFont.Small)
         y = y + lh
     end
-    if self.bClear then self.bClear:setEnable(#list > 0) end
+    -- Remove all: greyed with nothing wired, and for a player the part's
+    -- lock refuses, with the reason for its tooltip (never hidden).
+    if self.bClear then
+        local why = lockOf(st)
+        self.bClear:setEnable(#list > 0 and not why)
+        self.bClear.tooltip = getText(why or "Tooltip_OffGrid_UnwireBuildings")
+    end
 end
 
 function OG_Picker:new(st)

@@ -136,9 +136,12 @@ end
 
 --- Watts a single world object draws from THIS system right now.
 --
---  Returns watts, cold?, kind, rated watts. Kind and rated come back even at
---  zero draw, so the caller can tell "idle appliance" from "not an
---  appliance"; a bare 0 is not an appliance at all.
+--  Returns watts, cold?, kind, rated watts, units. Kind and rated come back
+--  even at zero draw, so the caller can tell "idle appliance" from "not an
+--  appliance"; a bare 0 is not an appliance at all. `units` is the engine's
+--  own getGeneratorPowerConsumption for everything that is billed, and nil
+--  whenever nothing is: what a vanilla generator burns petrol for, and so
+--  what a backup generator is billed (OG_BackupSys, 2026-09-27).
 --
 --  The three questions the engine answers better than a hand-written ladder:
 --    couldBePoweredByGenerator()   is this a candidate at all
@@ -208,16 +211,20 @@ local function objectDraw(obj)
         if try(obj, "isWasherActivated") then n = n + 1 end
         if try(obj, "isDryerActivated") then n = n + 1 end
         if n == 0 then return 0, false, "washerdryer", rated end
+        -- raw is the engine's sum of both halves, what vanilla bills
         return n == 2 and DRAW.washerdryer or DRAW.washer,
-               false, n == 2 and "washerdryer" or "washer", rated
+               false, n == 2 and "washerdryer" or "washer", rated, raw
     end
-    if kind then return rated, coldKind, kind, rated end
+    if kind then return rated, coldKind, kind, rated, raw end
 
-    return raw * UNKNOWN_WATTS_PER_UNIT, false, "other"
+    return raw * UNKNOWN_WATTS_PER_UNIT, false, "other", nil, raw
 end
 
 L.DRAW = DRAW
 L.classify = classify
 L.objectDraw = objectDraw
+-- One number: a backup generator's charging and every load watt with no
+-- engine unit are billed at this rate too (OG_BackupSys hands it to M.step).
+L.WATTS_PER_UNIT = UNKNOWN_WATTS_PER_UNIT
 
 return L

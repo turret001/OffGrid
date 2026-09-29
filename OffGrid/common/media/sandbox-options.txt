@@ -123,7 +123,9 @@ option OffGrid.TransformerLoss
 }
 
 /* Realistic Mode: panels produce what 1993 panels did (Alwar's figures on the
-   suggestions board, 2026-09-25). OG_Model.ARRAY_SPEC_1993. */
+   suggestions board, 2026-09-25). OG_Model.ARRAY_SPEC_1993. Backup generators
+   burn like real petrol generators (Can, 2026-09-29): OG_Model
+   BACKUP_REAL_IDLE_L and BACKUP_REAL_KWH_L, M.realFuelUse. */
 option OffGrid.RealisticMode
 {
     type = boolean,
@@ -153,4 +155,30 @@ option OffGrid.BarnStockChance
     default = 2,
     page = OffGrid,
     translation = OffGrid_BarnStockChance,
+}
+
+/* Backup generators (2026-09-27).
+
+   BackupFuelUse scales what a backup generator burns: 1 is what a normal
+   generator burns for the same appliances (vanilla's own Generator Fuel
+   Consumption applies on top), or with RealisticMode on what a real petrol
+   generator burns (Generator Fuel Consumption does not apply), 0 is free. AllowBackup off stops every
+   running backup and refuses new conversions; converting one back to a
+   normal generator still works, so nobody's generator is stranded. */
+option OffGrid.BackupFuelUse
+{
+    type = double,
+    min = 0.0,
+    max = 10.0,
+    default = 1.0,
+    page = OffGrid,
+    translation = OffGrid_BackupFuelUse,
+}
+
+option OffGrid.AllowBackup
+{
+    type = boolean,
+    default = true,
+    page = OffGrid,
+    translation = OffGrid_AllowBackup,
 }

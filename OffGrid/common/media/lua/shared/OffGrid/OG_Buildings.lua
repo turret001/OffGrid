@@ -3,6 +3,8 @@
      The Building Picker hands this file a clicked square, and Wire up the
      building hands it where a part stands. It answers with a TARGET: a map
      building or a player-built structure, and the footprint that goes with it.
+     A backup generator asks it one smaller question about the square it
+     stands on: is that square indoors (B.enclosedAt)?
 
      MAP BUILDINGS are the predefined BuildingDefs of the metagrid, which every
      side has: their rooms are LISTS of rects on a level (RoomDef.getRects,
@@ -289,6 +291,17 @@ local function qualifies(wr)
     if not try(wr, "isEnclosed") then return false end
     local roofed = try(wr, "getRoofedPercentage") or 0
     return roofed >= B.ROOFED
+end
+
+--- Is a square indoors? A backup generator will not run there (OG_Backup).
+--  Indoors is a map room, or a region that passes the building test above:
+--  walled in AND at least half roofed. So a walled yard with no roof is
+--  outdoors, and so is a carport, roofed but open at the sides. getBuilding()
+--  is not asked: a dedicated server never makes a player's rooms into
+--  buildings, and every side must give the same answer. One metagrid look-up
+--  and one region look-up, no flood: cheap enough for every tick a unit runs.
+function B.enclosedAt(x, y, z)
+    return B.predefinedRoomAt(x, y, z) ~= nil or qualifies(regionAt(x, y, z))
 end
 
 --- The player-built structure at a square: its footprint, or nil and why.

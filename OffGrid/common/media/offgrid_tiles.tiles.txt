@@ -2,7 +2,7 @@ version = 1
 tileset
 {
     file = offgrid_01
-    size = 4,60
+    size = 4,68
     id = 1
     // offgrid_01_0
     tile
@@ -5587,5 +5587,709 @@ tileset
         lightG = 232
         lightB = 196
         LightRadius = 12
+    }
+    // offgrid_01_240
+    tile
+    {
+        xy = 0,60
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_241
+    tile
+    {
+        xy = 1,60
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_242
+    tile
+    {
+        xy = 2,60
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_243
+    tile
+    {
+        xy = 3,60
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_244
+    tile
+    {
+        xy = 0,61
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_245
+    tile
+    {
+        xy = 1,61
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_246
+    tile
+    {
+        xy = 2,61
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_247
+    tile
+    {
+        xy = 3,61
+        CustomName = Backup Generator (ValuTech)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupValuTech
+        PickUpWeight = 300
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_248
+    tile
+    {
+        xy = 0,62
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_249
+    tile
+    {
+        xy = 1,62
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_250
+    tile
+    {
+        xy = 2,62
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_251
+    tile
+    {
+        xy = 3,62
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_252
+    tile
+    {
+        xy = 0,63
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_253
+    tile
+    {
+        xy = 1,63
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_254
+    tile
+    {
+        xy = 2,63
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_255
+    tile
+    {
+        xy = 3,63
+        CustomName = Backup Generator (Old)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupOld
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_256
+    tile
+    {
+        xy = 0,64
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_257
+    tile
+    {
+        xy = 1,64
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_258
+    tile
+    {
+        xy = 2,64
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_259
+    tile
+    {
+        xy = 3,64
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_260
+    tile
+    {
+        xy = 0,65
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_261
+    tile
+    {
+        xy = 1,65
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_262
+    tile
+    {
+        xy = 2,65
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_263
+    tile
+    {
+        xy = 3,65
+        CustomName = Backup Generator (Lectromax)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupLectromax
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_264
+    tile
+    {
+        xy = 0,66
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_265
+    tile
+    {
+        xy = 1,66
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_266
+    tile
+    {
+        xy = 2,66
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_267
+    tile
+    {
+        xy = 3,66
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
+    }
+    // offgrid_01_268
+    tile
+    {
+        xy = 0,67
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = E
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = 0
+        Soffset = 1
+        Woffset = 2
+        Noffset = 3
+        ItemHeight = 60
+    }
+    // offgrid_01_269
+    tile
+    {
+        xy = 1,67
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = S
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -1
+        Soffset = 0
+        Woffset = 1
+        Noffset = 2
+        ItemHeight = 60
+    }
+    // offgrid_01_270
+    tile
+    {
+        xy = 2,67
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = W
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -2
+        Soffset = -1
+        Woffset = 0
+        Noffset = 1
+        ItemHeight = 60
+    }
+    // offgrid_01_271
+    tile
+    {
+        xy = 3,67
+        CustomName = Backup Generator (Premium Technologies)
+        GroupName = Off-Grid
+        Facing = N
+        BlocksPlacement = 
+        Material = MetalPlates
+        Material2 = MetalScrap
+        MaterialType = Metal_Large
+        IsMoveAble = 
+        CustomItem = Base.OffGridBackupPremium
+        PickUpWeight = 400
+        PickUpLevel = 0
+        MoveType = Object
+        Eoffset = -3
+        Soffset = -2
+        Woffset = -1
+        Noffset = 0
+        ItemHeight = 60
     }
 }

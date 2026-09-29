@@ -49,6 +49,7 @@ require "OffGrid/OG_Model"
 require "OffGrid/OG_Env"
 require "OffGrid/OG_Almanac"
 require "OffGrid/OG_Boot"
+require "OffGrid/OG_Backup"
 
 OffGrid = OffGrid or {}
 OffGrid.Report = OffGrid.Report or {}
@@ -60,7 +61,7 @@ R.DISPLAY = "Off-Grid: Solar Power"
 -- Kept in step with mod.info by tests/test_report.py, which fails the build if
 -- the two ever disagree. A report that names the wrong version is worse than
 -- one that names none, because it sends whoever reads it to the wrong source.
-R.VERSION = "2.12.0"
+R.VERSION = "3.0.0"
 
 -- How far around the player to look for the mod's own objects. Matched to the
 -- link radius rather than picked, so the report covers the same ground a
@@ -163,6 +164,14 @@ local function linkCount(wire)
     return #OffGrid.Model.wireParse(wire)
 end
 
+--- How many barrels a backup generator's feed string names, read the way the
+--  unit reads it (OG_Backup's codec: a malformed position is not a barrel).
+local function feedCount(feeds)
+    local K = OffGrid.Backup
+    if type(feeds) ~= "string" or not (K and K.decodeFeeds) then return 0 end
+    return #K.decodeFeeds(feeds)
+end
+
 --- One part as the report shows it.
 --
 --  Every field is set with an explicit test, never `cond and v or nil`: that
@@ -213,9 +222,32 @@ function R.partEntry(o, info, d, square, playerObj)
         put("transformers", d.xfmrCount)
         put("wiredBuildings", d.wiredCount)
         put("buildings", d.bw)
+        -- Its backup generators (OG_BackupSys). The master Auto as the rules
+        -- read it (nil is on, so it is never left out); the levels a player
+        -- set (nil is the default and stays out) beside the clamped levels
+        -- Auto used on the last tick; how many units it holds; the watts they
+        -- delivered against what the running ones could give.
+        put("bkAuto", d.bkAuto ~= false)
+        put("bkStart", d.bkStart)
+        put("bkStop", d.bkStop)
+        put("bkStartNow", d.bkStartNow)
+        put("bkStopNow", d.bkStopNow)
+        put("bkN", d.bkN)
+        put("bkW", d.bkW)
+        put("bkCap", d.bkCap)
     elseif info.kind == "transformer" then
         put("wiredTo", d.sys or "none")
         put("buildings", d.bw)
+    elseif info.kind == "backup" then
+        -- A converted generator (OG_Backup): its tank in litres as the unit
+        -- holds it, whether it runs, its fault word or none, its own AUTO
+        -- switch as the rules read it (on unless false), and its barrels.
+        put("fuel", d.fuel)
+        put("run", d.run)
+        put("fault", d.fault or "none")
+        put("auto", d.auto ~= false)
+        put("feeds", feedCount(d.feeds))
+        put("wiredTo", d.sys or "none")
     end
     local owner = d.owner
     if type(owner) == "string" and owner ~= "" then
@@ -262,6 +294,32 @@ function R.parts(playerObj)
     return { radius = R.SCAN_RADIUS, byType = counts, objects = found }
 end
 
+--- The backup generators among them, under a key of their own (`generator`
+--  already names the engine's reach). The same scan and the same entries as
+--  nearbyParts; `near` is R.parts's answer when the caller has it, so the
+--  squares are walked once.
+function R.backups(playerObj, near)
+    if near == nil then near = R.parts(playerObj) end
+    -- "no player", "scan failed", no Off-Grid object at all: as true of the
+    -- backups as of everything else.
+    if type(near) ~= "table" then return near end
+    local out = {}
+    for i = 1, #near.objects do
+        local e = near.objects[i]
+        if string.sub(e.what, 1, 7) == "backup/" then
+            -- A copy, not the same table: a printer that remembers the tables
+            -- it has written could show the second sighting as a bare reference.
+            local copy = {}
+            for k, v in pairs(e) do copy[k] = v end
+            out[#out + 1] = copy
+        end
+    end
+    if #out == 0 then
+        return "no backup generators within " .. R.SCAN_RADIUS .. " tiles"
+    end
+    return out
+end
+
 --- The reach the engine lights, and whether LG Extended Electricity has taken
 --  it over (OG_Interop). An empty LOADS page on a server running LGEE is this,
 --  and nothing else in the report would show it.
@@ -282,6 +340,8 @@ end
 --  with its own tableToString, which formats better than anything built here.
 function R.build()
     local player = getPlayer()
+    -- One walk of the squares serves both lists.
+    local near = R.parts(player)
     return {
         modVersion   = R.VERSION,
         boot         = R.boot(),
@@ -289,7 +349,8 @@ function R.build()
         sandbox      = R.sandbox(),
         generator    = R.generator(),
         environment  = R.env(),
-        nearbyParts  = R.parts(player),
+        nearbyParts  = near,
+        backupGenerators = R.backups(player, near),
         multiplayer  = isClient() and true or false,
     }
 end

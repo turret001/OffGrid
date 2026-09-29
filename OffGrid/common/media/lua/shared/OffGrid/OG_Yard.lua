@@ -306,14 +306,17 @@ end
 
 --- Is there a door, or an empty door frame, on the edge between these two?
 --
---  The flag form matters: an empty doorway is a wall piece flagged as a door
---  frame and owned by the square to the south or east of the edge, so asking
---  the wrong square returns nothing and the rig walls up the opening.
+--  isDoorTo and getDoorTo find a door that is hung there, open or shut. An
+--  empty doorway has no door object at all: it is a wall piece flagged as a
+--  door frame, which only the flag test below finds. The flag belongs to the
+--  square to the south or east of the edge, so asking the wrong square
+--  returns nothing and the rig walls up the opening. (getDoorFrameTo, asked
+--  here once, only ever found the same hung doors as getDoorTo, and 42.21
+--  removed it.)
 local function doorBetween(env, ax, ay, bx, by, z)
     local a, b = env.getSquare(ax, ay, z), env.getSquare(bx, by, z)
     if not a or not b then return false end
-    if try(a, "isDoorTo", b) or try(a, "getDoorTo", b)
-            or try(a, "getDoorFrameTo", b) then
+    if try(a, "isDoorTo", b) or try(a, "getDoorTo", b) then
         return true
     end
     local owner = (bx > ax or by > ay) and b or a
