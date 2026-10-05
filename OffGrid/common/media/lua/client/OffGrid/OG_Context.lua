@@ -911,6 +911,15 @@ function C.onBreaker(worldobjects, object, playerObj, on)
     ISTimedActionQueue.add(OG_ResetBreaker:new(playerObj, object, on))
 end
 
+--- LIGHTS OFF, from the monitor's LOADS page: walk to the controller, then
+--  OG_LightsOff there. The page has already greyed the box for a player the
+--  lock refuses and told him why (OG_Window:onLightsOff).
+function C.onLightsOff(playerObj, object)
+    if not playerObj or not object then return end
+    if not C.approach(playerObj, object) then return end
+    ISTimedActionQueue.add(OG_LightsOff:new(playerObj, object))
+end
+
 function C.onCells(worldobjects, object, playerObj)
     if not C.approach(playerObj, object) then return end
     OffGrid.Bank.open(playerObj, object)

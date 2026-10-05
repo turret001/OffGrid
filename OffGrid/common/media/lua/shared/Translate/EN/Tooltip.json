@@ -26,7 +26,7 @@
     "Tooltip_OffGrid_BkBarrelFar": "Too far: 5 tiles at most.",
     "Tooltip_OffGrid_BkBarrelMixed": "It holds something besides gasoline. Empty it first.",
     "Tooltip_OffGrid_BkBarrelTaken": "This barrel already feeds a generator.",
-    "Tooltip_OffGrid_BkConvert": "Makes it a backup for an Off-Grid controller: run a cable from it to one and the controller starts and stops it. If Off-Grid is removed from this save, this generator is removed with it. Convert it to a normal generator first.",
+    "Tooltip_OffGrid_BkConvert": "Convert this generator into an Off-Grid backup generator. Once converted, you can run a cable from this generator to a controller and start managing it on the controller UI.",
     "Tooltip_OffGrid_BkCutFirst": "Cut its cable first.",
     "Tooltip_OffGrid_BkFeedsFull": "Eight barrels at most.",
     "Tooltip_OffGrid_BkFireOut": "Put the fire out first.",

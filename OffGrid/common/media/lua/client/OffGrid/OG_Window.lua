@@ -248,6 +248,11 @@ do
     GEN.footY = MID_Y + LCD_H - px(12) - fh
 end
 
+-- LIGHTS OFF on the LOADS page (Can, 2026-10-02), where the other pages keep
+-- the clock: on GEN's master switch's row, wide enough for IŞIKLARI KAPAT.
+local LIGHTS = { x = GEN.x + GEN.iw - px(112), y = GEN.headY - px(1),
+                 w = px(112), h = GEN.fh + px(2) }
+
 -- A generator's state word (K.unitState, as the server's bkRows carry it)
 -- and the LCD's word for it.
 local GEN_STATE = {
@@ -374,6 +379,11 @@ function OG_Window:createChildren()
         self.genBtns[#self.genBtns + 1] = genGhost(g.auto, "bkAuto", nil, i)
         self.genBtns[#self.genBtns + 1] = genGhost(g.run, "bkRun", nil, i)
     end
+
+    -- LIGHTS OFF, after the GEN buttons for the same reason; hidden until
+    -- genVisibility finds the LOADS page up on a live controller.
+    self.lightsBtn = ghost(LIGHTS.x, LIGHTS.y, LIGHTS.w, LIGHTS.h, OG_Window.onLightsOff)
+    self.lightsBtn:setVisible(false)
 end
 
 function OG_Window:onClose()
@@ -413,6 +423,21 @@ function OG_Window:onPowerToggle()
     end
 end
 
+--- LIGHTS OFF. For a player the controller's lock refuses it is drawn
+--  greyed (pageLoads) and a press only puts the reason above him in the
+--  warning colour, walking him nowhere, as the knob does.
+function OG_Window:onLightsOff()
+    local playerObj = getSpecificPlayer(0)
+    if not playerObj or not self.object or not (self.snap and self.snap.online) then return end
+    local why = self:rigLock(playerObj)
+    if why then
+        P.haloNote(playerObj, getText(why), true)
+        return
+    end
+    local C = OffGrid.Context
+    if C and C.onLightsOff then C.onLightsOff(playerObj, self.object) end
+end
+
 function OG_Window:onPageKey(button)
     self.page = button.pageName or "status"
     self:genVisibility()
@@ -424,6 +449,13 @@ end
 --  change, so a generator cut away, or a controller switched off, takes its
 --  buttons with it.
 function OG_Window:genVisibility()
+    -- LIGHTS OFF: on the LOADS page of a live controller only.
+    local lb = self.lightsBtn
+    if lb then
+        local s0 = self.snap
+        local want = s0 ~= nil and s0.online == true and (self.page or "status") == "loads"
+        if lb:isVisible() ~= want then lb:setVisible(want) end
+    end
     local btns = self.genBtns
     if not btns then return end
     local s = self.snap
@@ -869,7 +901,13 @@ local COMPRESSOR = { fridge = true, freezer = true, fridgefreezer = true }
 
 function OG_Window:pageLoads(s, x, y)
     local iw = LCD_W - px(28)
-    y = self:lcdHeader(s, x, y, "IGUI_OffGrid_PgLoads")
+    -- the title, and LIGHTS OFF where the other pages keep the clock; greyed
+    -- for a player the controller's lock refuses (s.rigLock)
+    local hf = UIFont.CodeSmall
+    self:text(fit(getText("IGUI_OffGrid_PgLoads"), LIGHTS.x - x - px(8), hf),
+              x, y, "ink", hf, 0.85)
+    self:genBox(LIGHTS, getText("IGUI_OffGrid_LightsOff"), false, s.rigLock and 0.35 or 1)
+    y = y + fontH(hf) + px(4)
     local list = s.loadList
     local rowH = fontH(UIFont.CodeSmall) + px(3)
     local starred = false

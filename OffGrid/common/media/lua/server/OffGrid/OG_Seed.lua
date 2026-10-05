@@ -36,9 +36,16 @@
          needs an anchor sprite that already exists on the square, and there is
          no vanilla sprite that means "a house that would have had solar".
 
-     The ledger is belt and braces. isNewChunk alone already makes double
-     firing impossible, but a building straddles chunks, and two adjacent new
-     chunks would otherwise each serve the same house.
+     Since 2026-10-05 (Can: "let's also add a new feature so that people can
+     seed existing saves if they add the mod mid-game") OLD chunks reach the
+     gate too, once a session each, for the houses the ledger has never
+     decided; there the LEDGER is what stops a rig being built twice. A NEW
+     chunk decides every house on it again, ledger or not, because a known
+     house on fresh ground means a wipe or a reset; S.DECIDED keeps that to
+     once a session (a dedicated server fires a whole cell's LoadChunk events
+     after all of it is readable, so one house's two chunks would otherwise
+     each serve it), and S.taken keeps a second rig off a house whose old one
+     survived, and every rig off a player's base.
 
      One caveat on isNewChunk that is worth knowing before trusting it: it
      returns IsoChunk.addZombies, which is set in exactly one place and gated
@@ -46,9 +53,9 @@
      So it is permanently FALSE on a multiplayer client, which is why the
      server does the seeding and this file returns early above; and it is
      false in the Tutorial and Last Stand game modes, where
-     addZombieOnCellLoad is switched off (Core.java:751). Neither matters for
-     survival play, but a feature that silently does nothing in a whole game
-     mode is worth writing down rather than rediscovering.
+     addZombieOnCellLoad is switched off (Core.java:751). There every chunk
+     reaches the gate as an old one since 2026-10-05, so those modes are
+     seeded too, once a session per chunk.
 ]]
 
 if isClient() then return end
@@ -355,7 +362,7 @@ function S.streamed(def, z, pad)
 end
 
 --- Put one Off-Grid object on a square and make the world notice.
-function S.place(sq, kind, mount, tier, state, facing)
+function S.place(sq, kind, mount, tier, state, facing, house)
     local name = P.sprite(kind, mount, tier, state, facing)
     if not name then return nil end
     -- The three-argument form. The two-argument one builds an ANONYMOUS
@@ -369,6 +376,9 @@ function S.place(sq, kind, mount, tier, state, facing)
     end
     sq:RecalcProperties()
     sq:RecalcAllWithNeighbours(true)
+    -- Which house (or barn) it was seeded for (S.taken): a neighbour's rig
+    -- standing in this yard is then never taken for this house's own.
+    if house then P.data(o).seededFor = house end
     if OffGrid.System then OffGrid.System.register(o) end
     return o
 end
@@ -382,6 +392,8 @@ function S.install(def, z)
     local id = def
     local Y = OffGrid.Yard
     local rooms = S.rooms(def, z)
+    -- what every part placed here records (S.place, S.taken)
+    local house = S.key(def, rooms)
     local b = { x = def:getX(), y = def:getY(), w = def:getW(), h = def:getH(),
                 z = z, id = S.key(def, rooms), rooms = rooms }
 
@@ -422,7 +434,7 @@ function S.install(def, z)
             snow      = 0,
         }
         local state = P.arrayState(spec)
-        local o = sq and S.place(sq, "array", "ground", tier, state, p.facing)
+        local o = sq and S.place(sq, "array", "ground", tier, state, p.facing, house)
         if o then
             local d = P.data(o)
             d.condition = spec.condition
@@ -451,7 +463,7 @@ function S.install(def, z)
         local state = P.bankState({ mount = "ground", tier = "makeshift",
                                     cells = cells })
         local o = sq and S.place(sq, "bank", "ground", "makeshift", state,
-                                 p.facing)
+                                 p.facing, house)
         if o then
             local d = P.data(o)
             d.condition = S.COND_MIN + S.draw(id, 50 + i, S.COND_MAX - S.COND_MIN)
@@ -502,6 +514,7 @@ function S.install(def, z)
           facing = cp.facing }, nil)
     if c then
         local d = P.data(c)
+        d.seededFor = house
         d.online = live and cellTotal > 0
         d.trip = false
         -- WIRED, over exactly the squares this plan placed, and never found
@@ -598,6 +611,7 @@ end
 --  Returns the parts placed, or nil and a reason: "livestock" when a feeding
 --  trough stands in the barn, "full" when no corner has room.
 function S.stockBarn(def)
+    local house = S.BARN_KEY .. S.key(def, S.rooms(def, 0))
     local open, rects = {}, {}
     local isBarnRoom = {}
     for i = 1, #S.BARN_ROOMS do isBarnRoom[S.BARN_ROOMS[i]] = true end
@@ -687,7 +701,7 @@ function S.stockBarn(def)
                 snow = 0,
             }
             local state = P.arrayState(spec)
-            o = S.place(sq, "array", "ground", tier, state, run.facing)
+            o = S.place(sq, "array", "ground", tier, state, run.facing, house)
             if o then
                 local d = P.data(o)
                 d.condition, d.soiling, d.snow, d.state = spec.condition, spec.soiling, 0, state
@@ -698,7 +712,7 @@ function S.stockBarn(def)
             -- a battery rack, usually with a battery or two left in it
             local cells = S.draw(def, 120 + i, 3)
             local state = P.bankState({ mount = "ground", tier = "makeshift", cells = cells })
-            o = S.place(sq, "bank", "ground", "makeshift", state, run.facing)
+            o = S.place(sq, "bank", "ground", "makeshift", state, run.facing, house)
             if o then
                 local d = P.data(o)
                 d.condition = S.STASH_COND_MIN + S.draw(def, 130 + i,
@@ -728,9 +742,10 @@ end
 --- Houses that passed the gate and are waiting for their yard to load.
 --
 --  IN THE SAVE, keyed like the ledger, each holding "ax,ay,x,y,w,h": a ground
---  square of the building, to find it again, and its bounding box. A key is
---  either waiting here or recorded in the ledger, never both, which is what
---  keeps the no-double-rig guarantee.
+--  square of the building, to find it again, and its bounding box. On old
+--  ground a key is either waiting here or recorded in the ledger, never both.
+--  Fresh ground can queue a house the ledger knows (a wipe made its ground
+--  new; S.onLoadChunk), and S.taken is then what keeps it to one rig.
 --
 --  The first queue lived in memory and gave a house up, into the ledger,
 --  after twelve chunk events of any kind. The engine loads 169 chunks around
@@ -756,6 +771,26 @@ S.INDEX = nil
 --- This session's building defs by key, so a house found here is not looked
 --  up again from its square.
 S.DEFS = {}
+
+--- Old chunks already scanned this session ("kx,ky"), so one streaming in and
+--  out is looked at once a session, not at every load (S.onLoadChunk). Memory
+--  only: a reload looks again, and finds what the ledger has decided since.
+S.SCANNED = {}
+
+--- Houses (and barns, by their own key) decided this session. A NEW chunk
+--  decides a house the ledger knows again, but only once a session: a
+--  dedicated server makes a whole cell readable before it fires its chunks'
+--  LoadChunk events one by one (ServerMap.RecalcAll2), so a chosen house
+--  spanning two fresh chunks is served in the first event and would be
+--  decided again in the second. Memory only.
+S.DECIDED = {}
+
+--- "ax,ay,x,y,w,h": a ground square of the building and its bounding box,
+--  as the waiting list keeps them (parseWait).
+local function spot(sq, def)
+    return sq:getX() .. "," .. sq:getY() .. "," .. def:getX() .. "," .. def:getY()
+           .. "," .. def:getW() .. "," .. def:getH()
+end
 
 local floor = math.floor
 
@@ -835,11 +870,144 @@ local function defOf(key, v)
     return def
 end
 
+--- Tiles the map's own converters turn into IsoThumpables that carry build
+--  materials: rain barrels (MORainCollectorBarrel, rebuilt as 02_54 and
+--  02_122), lamps on pillars (MOLampOnPillar) and wooden wall frames
+--  (MOWoodenWallFrame). They write their counts as text ("4"); a player's
+--  build writes numbers (ISBuildingObject:updateModData). One of these tiles
+--  with only text counts was put there by the map, not by a player.
+S.MAP_THUMPABLES = {
+    carpentry_02_54 = true, carpentry_02_122 = true,
+    carpentry_02_59 = true, carpentry_02_60 = true, carpentry_02_61 = true,
+    carpentry_02_62 = true, carpentry_02_100 = true, carpentry_02_101 = true,
+}
+
+--- Did a player build this? An IsoThumpable carrying build materials, the
+--  dismantle refund (the marker the zomboid unit's save scans use), less the
+--  map-converted ones above.
+local function playerBuilt(o)
+    if not (instanceof and instanceof(o, "IsoThumpable")) then return false end
+    if try(o, "hasBuildMaterials") ~= true then return false end
+    local spr = try(o, "getSprite")
+    local name = spr and try(spr, "getName")
+    if name and S.MAP_THUMPABLES[name] then
+        local mats = try(o, "getBuildMaterials")
+        local text = true
+        if mats then
+            for _, v in pairs(mats) do
+                if type(v) ~= "string" then
+                    text = false
+                    break
+                end
+            end
+        end
+        if text then return false end
+    end
+    return true
+end
+
+--- A sign of a player's base on one object, or nil: something built, a
+--  barricade, or a generator that is not an Off-Grid part. Moved furniture
+--  leaves no mark the engine keeps, so it is not seen.
+local function baseSign(o)
+    if playerBuilt(o) then return "built by a player" end
+    if instanceof and instanceof(o, "IsoBarricade") then return "barricaded" end
+    if instanceof and instanceof(o, "IsoGenerator") and not P.partOf(o) then
+        return "a generator"
+    end
+    return nil
+end
+
+--- Why a house's ground must be left as it is, or nil (Can, 2026-10-05).
+--
+--  Two jobs. Fresh ground decides every house again (S.onLoadChunk), so a
+--  house whose rig survived a partial wipe must not get a second one; and
+--  old ground is seeded too, so a player's base must not get one at all.
+--  Asked once the job's whole working area is in memory (serve), over the
+--  same box S.streamed waited for, at ground level, and over the building's
+--  own box on its other floors:
+--    * a safehouse over any of it (none in singleplayer);
+--    * a sign of a base (baseSign): built, barricaded, a generator;
+--    * an Off-Grid part that is this house's own or a player's: one seeded
+--      for this house (seededFor, since 2026-10-05), one a player owns
+--      (owner, on a server), or an untagged one within two squares of the
+--      house's ground-floor rooms (a rig seeded before the tag existed, or a
+--      singleplayer player's). A part seeded for another house is that
+--      house's, and never takes this one's chance. A barn asks for any part
+--      on its own floor.
+function S.taken(def, pad, key)
+    local bx, by, bw, bh = def:getX(), def:getY(), def:getW(), def:getH()
+    local x0, y0, x1, y1 = bx - pad, by - pad, bx + bw + pad, by + bh + pad
+    local SH = SafeHouse
+    if SH and SH.getSafehouseOverlapping then
+        -- [x, x2) in the engine (SafeHouse.java:183): the box's last column
+        -- and row are x1 and y1, so the far edges go one past them
+        local ok, sh = pcall(SH.getSafehouseOverlapping, x0, y0, x1 + 1, y1 + 1)
+        if ok and sh then return "a safehouse" end
+    end
+    local barn = isBarnKey(key)
+    local rooms = not barn and S.rooms(def, 0) or nil
+    local function againstHouse(x, y)
+        if barn then return true end
+        if not rooms or #rooms == 0 then
+            return x >= bx - 2 and x < bx + bw + 2 and y >= by - 2 and y < by + bh + 2
+        end
+        for i = 1, #rooms do
+            local r = rooms[i]
+            if x >= r.x - 2 and x < r.x + r.w + 2 and y >= r.y - 2 and y < r.y + r.h + 2 then
+                return true
+            end
+        end
+        return false
+    end
+    local function partSign(o, x, y)
+        local d = P.data(o)
+        if d.seededFor ~= nil then
+            if d.seededFor == key then return "its own Off-Grid parts" end
+            return nil
+        end
+        if d.owner ~= nil then return "a player's Off-Grid part" end
+        if againstHouse(x, y) then return "an Off-Grid part against it" end
+        return nil
+    end
+    local function look(x, y, z, parts)
+        local sq = getSquare(x, y, z)
+        local objs = sq and sq:getObjects()
+        for i = 0, (objs and objs:size() or 0) - 1 do
+            local o = objs:get(i)
+            local why = baseSign(o)
+            if not why and parts and P.partOf(o) then why = partSign(o, x, y) end
+            if why then return why end
+        end
+        return nil
+    end
+    for x = x0, x1 do
+        for y = y0, y1 do
+            local why = look(x, y, 0, true)
+            if why then return why end
+        end
+    end
+    -- the building's other floors, basements too, inside its own box
+    local lo, hi = try(def, "getMinLevel") or 0, try(def, "getMaxLevel") or 0
+    for z = lo, hi do
+        if z ~= 0 then
+            for x = bx, bx + bw - 1 do
+                for y = by, by + bh - 1 do
+                    local why = look(x, y, z, false)
+                    if why then return why end
+                end
+            end
+        end
+    end
+    return nil
+end
+
 --- Serve one waiting house if its whole working area has loaded.
 --
 --  The ledger is written AFTER the work, not before. What shipped once marked
 --  the house first, so a rig that failed for any reason burned the house for
---  good: recorded as served, never retried.
+--  good: recorded as served, never retried. A house S.taken refuses is
+--  recorded too: it is somebody's, or has its rig.
 local function serve(book, wait, key)
     local v = wait[key]
     if not v then return end
@@ -849,6 +1017,14 @@ local function serve(book, wait, key)
     wait[key] = nil
     book[key] = true
     S.DEFS[key] = nil
+    local taken = S.taken(def, padFor(key), key)
+    if taken then
+        if S.DEBUG then
+            print(string.format("OG_Seed: left alone at %d,%d -- %s",
+                                def:getX(), def:getY(), taken))
+        end
+        return
+    end
     if isBarnKey(key) then
         local parts, why = S.stockBarn(def)
         if parts then
@@ -889,39 +1065,54 @@ function S.onLoadChunk(chunk)
     -- anyway. Calling a getter that does not exist throws once per new chunk
     -- and the seeding never runs.
     local origin = chunk:getGridSquare(0, 0, 0) or chunk:getGridSquare(7, 7, 0)
+    local ck = origin and (floor(origin:getX() / 8) .. "," .. floor(origin:getY() / 8)) or nil
 
-    -- Only a NEW chunk can bring a house to the gate. isNewChunk is what
-    -- stops a rig being rebuilt every time the chunk streams back in.
-    if chunk:isNewChunk() then
-        local seen, keyOf = {}, {}
+    -- Which chunks bring houses to the gate (Can, 2026-10-05). A NEW chunk
+    -- always does, and decides every house on it, ledger or not: ground made
+    -- now, for the first time or again after a wipe or a reset, and the roll
+    -- is the house's own, so a known house gets the answer it had. S.taken
+    -- keeps a second rig off a house whose old one survived. An OLD chunk
+    -- does once a session, for the houses the ledger has never decided: a
+    -- save that added the mod mid-game, or ground explored before the
+    -- seeding existed. The ledger is what stops a rig being rebuilt every
+    -- time an old chunk streams back in.
+    local isNew = chunk:isNewChunk()
+    local scan = isNew
+    if ck then
+        if not isNew and not S.SCANNED[ck] then scan = true end
+        S.SCANNED[ck] = true
+    end
+    if scan then
+        -- Fresh ground decides a house again, once a session (S.DECIDED); old
+        -- ground only what the ledger has never decided. The legacy key is
+        -- asked as well as the new one, so a save written before the key
+        -- changed does not have every house it already served handed a
+        -- second rig.
+        local function open(k, known)
+            if wait[k] then return false end
+            if isNew then return not S.DECIDED[k] end
+            return not known
+        end
+        local done = {}
         for dy = 0, 7 do
             for dx = 0, 7 do
                 local sq = chunk:getGridSquare(dx, dy, 0)
                 local b = sq and sq:getBuilding()
                 local def = b and b:getDef()
-                if def then
-                    -- Once per building, not once per square: S.rooms builds
-                    -- a table for every room rect, and a chunk inside a big
-                    -- building met the same def 64 times.
-                    local key = keyOf[def]
-                    if not key then
-                        key = S.key(def, S.rooms(def, 0))
-                        keyOf[def] = key
-                    end
-                    local v = sq:getX() .. "," .. sq:getY() .. ","
-                              .. def:getX() .. "," .. def:getY() .. ","
-                              .. def:getW() .. "," .. def:getH()
-                    -- The legacy key is checked as well as the new one, so a
-                    -- save written before the key changed does not have every
-                    -- house it already served handed a second rig.
-                    if not seen[key] and not wait[key]
-                            and not book[key] and not book[S.legacyKey(def)] then
-                        seen[key] = true
+                -- Once per building, not once per square: a chunk inside a
+                -- big building meets the same def 64 times, and S.rooms
+                -- builds a table for every room rect.
+                if def and not done[def] then
+                    done[def] = true
+                    local key = S.key(def, S.rooms(def, 0))
+                    if open(key, book[key] or book[S.legacyKey(def)]) then
+                        S.DECIDED[key] = true
                         local n = S.rigChance()
                         if n > 0 and S.isResidential(def)
                                 and S.roll(def, 3, n) == 0 then
                             -- Waiting, not served: its yard probably spans
                             -- chunks that have not arrived.
+                            local v = spot(sq, def)
                             wait[key] = v
                             S.DEFS[key] = def
                             indexAdd(key, v)
@@ -932,11 +1123,11 @@ function S.onLoadChunk(chunk)
                     -- A barn is decided separately, under its own key, and
                     -- only a building that has a barn room is written down.
                     local bkey = S.BARN_KEY .. key
-                    if not seen[bkey] and not wait[bkey] and not book[bkey]
-                            and S.isStorageBarn(def) then
-                        seen[bkey] = true
+                    if open(bkey, book[bkey]) and S.isStorageBarn(def) then
+                        S.DECIDED[bkey] = true
                         local n = S.barnChance()
                         if n > 0 and S.roll(def, 5, n) == 0 then
+                            local v = spot(sq, def)
                             wait[bkey] = v
                             S.DEFS[bkey] = def
                             indexAdd(bkey, v)
@@ -952,8 +1143,8 @@ function S.onLoadChunk(chunk)
     -- Any chunk, new or not, may be the last piece of a waiting house's yard.
     -- Its own squares are already readable during its own LoadChunk (measured
     -- live, 169 chunks of 169), so the house is served from this very event.
-    if not origin then return end
-    local set = idx[floor(origin:getX() / 8) .. "," .. floor(origin:getY() / 8)]
+    if not ck then return end
+    local set = idx[ck]
     if not set then return end
     local keys = {}
     for key in pairs(set) do keys[#keys + 1] = key end

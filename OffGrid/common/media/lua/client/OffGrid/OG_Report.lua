@@ -61,7 +61,7 @@ R.DISPLAY = "Off-Grid: Solar Power"
 -- Kept in step with mod.info by tests/test_report.py, which fails the build if
 -- the two ever disagree. A report that names the wrong version is worse than
 -- one that names none, because it sends whoever reads it to the wrong source.
-R.VERSION = "3.0.0"
+R.VERSION = "3.1.0"
 
 -- How far around the player to look for the mod's own objects. Matched to the
 -- link radius rather than picked, so the report covers the same ground a

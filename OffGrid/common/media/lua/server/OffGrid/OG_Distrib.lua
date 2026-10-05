@@ -740,17 +740,64 @@ function D.sweep(rec)
 
     if complete then rec.sw = nil end
     if complete or not rec.swept then
+        -- the room lights the cache holds, each once (OG_System roomWatts)
+        local rooms = internal.roomWatts(rec)
         if complete then
-            rec.load = rec.scanLoad
+            rec.load = rec.scanLoad + rooms
             rec.cold = rec.scanCold or 0
         else
-            rec.load = math.max(rec.load or 0, rec.scanLoad)
+            rec.load = math.max(rec.load or 0, rec.scanLoad + rooms)
             rec.cold = math.max(rec.cold or 0, rec.scanCold or 0)
         end
         if complete or rec.listPending then internal.foldKinds(rec) end
         if complete then
             rec.swept = true
             rec.listPending = false
+        end
+    end
+end
+
+--- Drop the stored totals of these chunks ("kx,ky" set), so the sweep reads
+--  them again: a chunk just re-read may unload before the sweep comes round
+--  to it, and its stored total would then be what it held BEFORE the read.
+function D.forgetChunks(rec, chunks)
+    if not rec.unitSum then return end
+    local plan = rec.plan
+    for ck in pairs(chunks) do
+        local list = plan.index[ck]
+        for n = 1, #(list or {}) do rec.unitSum[list[n] .. "@" .. ck] = nil end
+    end
+end
+
+--- Every square of every shape in a loaded chunk, each once (R.owner), as
+--  D.sweep walks them: S.lightsOff's walk.
+function D.eachLoaded(rec, fn)
+    local plan = rec.plan
+    local shapes, ix = plan.shapes, plan.index
+    local internal = I()
+    for si = 1, #shapes do
+        local s = shapes[si]
+        s.chunks = s.chunks or R.chunksOf(s)
+        for ci = 1, #s.chunks do
+            local ch = s.chunks[ci]
+            local x0, y0 = ch.kx * 8, ch.ky * 8
+            if internal.chunkLoaded(x0, y0, 0) then
+                for y = math.max(s.y0, y0), math.min(s.y1, y0 + 7) do
+                    local xa, xb = R.rowSpan(s, y)
+                    if xa then
+                        if xa < x0 then xa = x0 end
+                        if xb > x0 + 7 then xb = x0 + 7 end
+                        for x = xa, xb do
+                            for z = s.zlo, s.zhi do
+                                if R.owner(shapes, ix, si, x, y, z) then
+                                    local sq = getSquare(x, y, z)
+                                    if sq then fn(x, y, z, sq) end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
 end
@@ -783,21 +830,8 @@ function D.near(rec)
     -- A chunk just re-read may unload before the sweep comes round to it, and
     -- its stored total would then be what it held BEFORE this read. So the
     -- stored totals of exactly these chunks go; the rest stand.
-    if rec.unitSum then
-        for ck in pairs(chunks) do
-            local list = plan.index[ck]
-            for n = 1, #(list or {}) do rec.unitSum[list[n] .. "@" .. ck] = nil end
-        end
-    end
-    local total, coldTotal = internal.cacheTotals(rec)
-    if rec.swept or rec.listPending then internal.foldKinds(rec) end
-    if rec.swept then
-        rec.load = total
-        rec.cold = coldTotal
-    else
-        rec.load = math.max(rec.load or 0, total)
-        rec.cold = math.max(rec.cold or 0, coldTotal)
-    end
+    D.forgetChunks(rec, chunks)
+    internal.publishCache(rec)
 end
 
 --- Watts every powered transformer draws doing nothing.

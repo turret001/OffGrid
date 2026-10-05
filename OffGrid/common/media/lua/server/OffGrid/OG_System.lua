@@ -88,6 +88,10 @@ local REACH = 3             -- squares; arm's length, the same rule the menus us
 -- What each light or appliance draws, and whether it runs, is OG_Loads's:
 -- shared, so the coverage overlay on a client lights exactly what this bills.
 local objectDraw = OffGrid.Loads.objectDraw
+-- One light's watts: a lamp's, or a room's ceiling light's, billed once
+-- however many wall switches the room has (roomLights).
+local LIGHT_W = OffGrid.Loads.DRAW.light
+local fixedLight = OffGrid.Loads.fixedLight
 
 local function key(x, y, z) return x .. "," .. y .. "," .. z end
 
@@ -988,25 +992,49 @@ local function readSquare(rec, x, y, z)
 
     local w, cold, units = 0, 0, 0
     local kinds, idle = nil, nil
+    local lit, dark, fixed = nil, nil, 0
     local objs = s:getObjects()
     for i = 0, objs:size() - 1 do
+        local o = objs:get(i)
         -- Locals, deliberately. A Lua multi-return collapses to its first
         -- value anywhere but the final argument slot, so folding this into the
         -- addition below would silently drop the rest.
-        local ow, isCold, kk, rated, ou = objectDraw(objs:get(i))
-        w = w + ow
+        local ow, isCold, kk, rated, ou, rk = objectDraw(o)
         -- The engine's own fuel units for what it bills: what a backup
-        -- generator is charged for serving this square (OG_BackupSys).
+        -- generator is charged for serving this square (OG_BackupSys). Per
+        -- switch, as a vanilla generator burns them.
         units = units + (ou or 0)
-        if isCold then cold = cold + ow end
-        if ow > 0 then
-            kinds = kinds or {}
-            kinds[kk] = (kinds[kk] or 0) + ow
-        elseif kk and rated then
-            -- present but not running: the LOADS page lists it dim, at its
-            -- rated draw
-            idle = idle or {}
-            idle[kk] = (idle[kk] or 0) + rated
+        if rk then
+            -- A wall switch: its room's one light, which roomLights bills
+            -- once however many switches the room has (2026-10-02). Every
+            -- switch of a room reads the room's one state, so this reading,
+            -- taken live, is the room's: the latest one decides (rec.roomLit),
+            -- and a room put out at the door leaves the load at once, though
+            -- the switch by the bed is not read again until the sweep comes.
+            rec.roomLit = rec.roomLit or {}
+            rec.roomLit[rk] = ow > 0
+            if ow > 0 then
+                lit = lit or {}
+                lit[rk] = true
+            else
+                dark = dark or {}
+                dark[rk] = true
+            end
+        else
+            w = w + ow
+            if isCold then cold = cold + ow end
+            -- a lamp nobody can switch (OG_Loads fixedLight): LIGHTS OFF
+            -- leaves it, and never counts it as out of reach
+            if ow > 0 and kk == "light" and fixedLight(o) then fixed = fixed + ow end
+            if ow > 0 then
+                kinds = kinds or {}
+                kinds[kk] = (kinds[kk] or 0) + ow
+            elseif kk and rated then
+                -- present but not running: the LOADS page lists it dim, at
+                -- its rated draw
+                idle = idle or {}
+                idle[kk] = (idle[kk] or 0) + rated
+            end
         end
     end
 
@@ -1015,15 +1043,59 @@ local function readSquare(rec, x, y, z)
     -- of them would be a table of 11,767 entries per controller. A square with
     -- an idle appliance earns its entry the same way a drawing one does; both
     -- are rare.
-    if w > 0 or idle then
+    if w > 0 or idle or lit or dark then
         -- The kind split rides in the same cache, so squares in unloaded
         -- chunks keep their itemised entry on the LOADS page, exactly as they
-        -- keep their watts in the total.
-        rec.drawn[k] = { w = w, cold = cold, u = units, kinds = kinds, idle = idle }
+        -- keep their watts in the total. So do the rooms its wall switches
+        -- light (rl) or would (ri).
+        rec.drawn[k] = { w = w, cold = cold, u = units, kinds = kinds, idle = idle,
+                         rl = lit, ri = dark, fx = fixed > 0 and fixed or nil }
     else
         rec.drawn[k] = nil
     end
     return w, cold
+end
+
+--- Is a room lit? Its latest live reading says (readSquare, rec.roomLit):
+--  every switch of a room shares one state. A room never read live since the
+--  record was made (all of it out of memory) is lit when a cached switch of
+--  it was read lit. `cachedLit` is that.
+local function roomOn(rec, rk, cachedLit)
+    local live = rec.roomLit and rec.roomLit[rk]
+    if live ~= nil then return live end
+    return cachedLit == true
+end
+
+--- The room lights in the cache: how many rooms are lit, and how many are
+--  listed but dark, each once however many switches it has. The cache entries
+--  say which rooms the system holds; roomOn says which are lit. Cached
+--  switches of one room can disagree (a square re-read since the room
+--  changed, another not), and the live reading settles it.
+local function roomLights(rec)
+    local seen, cachedLit = {}, {}
+    for _, e in pairs(rec.drawn or {}) do
+        if e.rl then
+            for rk in pairs(e.rl) do
+                seen[rk] = true
+                cachedLit[rk] = true
+            end
+        end
+        if e.ri then
+            for rk in pairs(e.ri) do seen[rk] = true end
+        end
+    end
+    local nLit, nDark = 0, 0
+    for rk in pairs(seen) do
+        if roomOn(rec, rk, cachedLit[rk]) then nLit = nLit + 1 else nDark = nDark + 1 end
+    end
+    return nLit, nDark
+end
+
+--- Watts of the lit room lights in the cache. The sweeps add it to their
+--  per-square sums, which never hold a wall switch (readSquare).
+local function roomWatts(rec)
+    local nLit = roomLights(rec)
+    return nLit * LIGHT_W
 end
 
 --  Returns the cache's own total and cold total as well. Summing `rec.drawn`
@@ -1041,6 +1113,7 @@ local function cacheTotals(rec)
         coldTotal = coldTotal + (e.cold or 0)
         unitsTotal = unitsTotal + (e.u or 0)
     end
+    total = total + roomWatts(rec)
     return total, coldTotal, unitsTotal
 end
 
@@ -1059,9 +1132,29 @@ local function foldKinds(rec)
             end
         end
     end
+    -- each room's ceiling light once, lit or dark
+    local nLit, nDark = roomLights(rec)
+    if nLit > 0 then kindsum.light = (kindsum.light or 0) + nLit * LIGHT_W end
+    if nDark > 0 then idlesum.light = (idlesum.light or 0) + nDark * LIGHT_W end
     rec.kinds = kindsum
     rec.idleKinds = idlesum
     return total, coldTotal
+end
+
+--- Publish the cache's totals and rows under the first sweep's rules: until
+--  it has been all the way round, the total may rise to what has been seen
+--  and never falls below the demand a save carried in. S.scanNear,
+--  OG_Distrib's near scan and S.lightsOff publish this way.
+local function publishCache(rec)
+    local total, coldTotal = cacheTotals(rec)
+    if rec.swept or rec.listPending then foldKinds(rec) end
+    if rec.swept then
+        rec.load = total
+        rec.cold = coldTotal
+    else
+        rec.load = math.max(rec.load or 0, total)
+        rec.cold = math.max(rec.cold or 0, coldTotal)
+    end
 end
 
 --- Every player the simulation can see, on either side of the network.
@@ -1148,22 +1241,15 @@ function S.scanNear(rec)
     -- the handful beside the player. Replacing a saved nine-row list with
     -- that is how a full page turns into a short one for the rest of the
     -- sweep, which reads exactly like the page having stopped updating.
-    local total, coldTotal = cacheTotals(rec)
-    if rec.swept or rec.listPending then foldKinds(rec) end
-    if rec.swept then
-        rec.load = total
-        rec.cold = coldTotal
-    else
-        -- Before the first sweep finishes the cache is only the part of the
-        -- cylinder that has been walked, so the same rule the first sweep uses
-        -- applies here: the total may rise to what has been seen, and may
-        -- never fall below the demand a save carried in. Raising it matters as
-        -- much as not lowering it. foldKinds has just published rows for the
-        -- appliances beside the player, and a page that itemises 1800 W under
-        -- a TOTAL of nothing is worse than either number alone.
-        rec.load = math.max(rec.load or 0, total)
-        rec.cold = math.max(rec.cold or 0, coldTotal)
-    end
+    --
+    -- Before the first sweep finishes the cache is only the part of the
+    -- cylinder that has been walked, so the same rule the first sweep uses
+    -- applies here: the total may rise to what has been seen, and may never
+    -- fall below the demand a save carried in. Raising it matters as much as
+    -- not lowering it. foldKinds has just published rows for the appliances
+    -- beside the player, and a page that itemises 1800 W under a TOTAL of
+    -- nothing is worse than either number alone.
+    publishCache(rec)
 end
 
 --- One slice of the appliance load scan. Walks a fraction of the rows each
@@ -1212,11 +1298,13 @@ function S.scanSlice(rec)
     -- demand a save carried, and never replaces a saved appliance list with
     -- the part of one it has seen.
     if complete or not rec.swept then
+        -- the room lights the cache holds, each once (roomWatts)
+        local rooms = roomWatts(rec)
         if complete then
-            rec.load = rec.scanLoad
+            rec.load = rec.scanLoad + rooms
             rec.cold = rec.scanCold or 0
         else
-            rec.load = math.max(rec.load or 0, rec.scanLoad)
+            rec.load = math.max(rec.load or 0, rec.scanLoad + rooms)
             rec.cold = math.max(rec.cold or 0, rec.scanCold or 0)
         end
         if complete or rec.listPending then foldKinds(rec) end
@@ -1224,6 +1312,212 @@ function S.scanSlice(rec)
             rec.swept = true
             rec.listPending = false
         end
+    end
+end
+
+------------------------------------------------------------------ lights off
+
+local function unkey(k)
+    local x, y, z = string.match(k, "^(-?%d+),(-?%d+),(-?%d+)$")
+    return tonumber(x), tonumber(y), tonumber(z)
+end
+
+--- Every square of the system in a loaded chunk: the controller's cylinder,
+--  or every shape OG_Distrib walks when the system reaches further.
+local function eachLoadedSquare(rec, fn)
+    if rec.plan and rec.plan.extra and OffGrid.Distrib then
+        return OffGrid.Distrib.eachLoaded(rec, fn)
+    end
+    local radius, vr = powerRadius(), powerLevels()
+    local r2 = radius * radius
+    for dx = -radius, radius do
+        for dy = -radius, radius do
+            if dx * dx + dy * dy <= r2 then
+                for dz = -vr, vr do
+                    local x, y, z = rec.x + dx, rec.y + dy, rec.z + dz
+                    local sq = getSquare(x, y, z)
+                    if sq then fn(x, y, z, sq) end
+                end
+            end
+        end
+    end
+end
+
+--- A note above a player, with up to three numbers in it. A dedicated server
+--  loads no mod translations, so it sends the key and the numbers and the
+--  client fills them in (OG_Commands); singleplayer shows it at once. News,
+--  not a refusal: the game's own colour.
+local function tell(player, key, a1, a2, a3)
+    if not player then return end
+    if isServer() then
+        if sendServerCommand then
+            sendServerCommand(player, "OffGrid", "note",
+                              { key = key, id = P.try(player, "getOnlineID"),
+                                warn = false, a1 = a1, a2 = a2, a3 = a3 })
+        end
+    else
+        P.haloNote(player, P.txt(key, a1, a2, a3), false)
+    end
+end
+
+--- The other tiles of a lamp several tiles wide (a pool-table lamp, a pair of
+--  wall lights: 13 tiles in 6 lamps at the Riverside motel) that are lit and
+--  billed. Each tile is an IsoLightSwitch with its own light and its own
+--  55 W, and switching one switches the rest when there is power
+--  (IsoLightSwitch.switchLight, its sprite grid): the walk then finds them
+--  dark and would not count them (live, 2026-10-05: "175" for 182 lights).
+local gridTmp
+local function litPartners(o)
+    if P.try(o, "hasSpriteGrid") ~= true or not ArrayList then return nil end
+    gridTmp = gridTmp or ArrayList.new()
+    gridTmp:clear()
+    o:getSpriteGridObjects(gridTmp)
+    local out
+    for j = 0, gridTmp:size() - 1 do
+        local p = gridTmp:get(j)
+        if p ~= o and instanceof(p, "IsoLightSwitch") and p:isActivated() then
+            local w, _, kk, _, _, rk = objectDraw(p)
+            if kk == "light" and w > 0 and not rk then
+                out = out or {}
+                out[#out + 1] = p
+            end
+        end
+    end
+    return out
+end
+
+--- LIGHTS OFF (Can, 2026-10-02): switch off every light this system pays
+--  for, in every room, his own included. Run on the authority by
+--  OG_LightsOff's completion. A light in a chunk out of memory cannot be
+--  reached; it is counted from the cache and he is told to go closer.
+function S.lightsOff(playerObj, ctrl)
+    if not ctrl or P.try(ctrl, "getObjectIndex") == -1 then return end
+    if P.partOf(ctrl) ~= "controller" then return end
+    -- the controller's owner's group only, like its switch (Can, 2026-09-29)
+    if not usable(playerObj, ctrl) then return end
+    local csq = ctrl:getSquare()
+    local rec = csq and S.controllers[key(csq:getX(), csq:getY(), csq:getZ())]
+    if not rec then return end
+    rec.drawn = rec.drawn or {}
+    local t0 = getTimestampMs and getTimestampMs() or nil
+
+    local rooms, nRooms, lamps, stuck = {}, 0, 0, 0
+    local seen, squares = {}, 0
+    eachLoadedSquare(rec, function(x, y, z, sq)
+        squares = squares + 1
+        local objs = sq:getObjects()
+        local any = false
+        for i = 0, objs:size() - 1 do
+            local o = objs:get(i)
+            if instanceof(o, "IsoLightSwitch") then
+                any = true
+                local w, _, kk, _, _, rk = objectDraw(o)
+                if kk == "light" and w > 0 then
+                    -- The full path (switchLight, then syncIsoObject to the
+                    -- clients near it); the third argument skips
+                    -- canSwitchLight, which refuses any switch while there is
+                    -- no power, as under LOW BATT. A wall switch puts its
+                    -- whole room out, so the room's other switches read 0 W
+                    -- after it. A lamp with no room that is not a moveable is
+                    -- refused (IsoLightSwitch.java:484-495) and stays on.
+                    local partners = not rk and litPartners(o)
+                    o:setActive(false, false, true)
+                    if o:isActivated() then
+                        stuck = stuck + 1
+                    elseif rk then
+                        if not rooms[rk] then
+                            rooms[rk] = true
+                            nRooms = nRooms + 1
+                        end
+                    else
+                        lamps = lamps + 1
+                    end
+                    -- the tiles that went dark with it; one that stayed lit
+                    -- (no power) is counted when the walk reaches it
+                    for j = 1, partners and #partners or 0 do
+                        if not partners[j]:isActivated() then lamps = lamps + 1 end
+                    end
+                end
+            end
+        end
+        if any then
+            local k = key(x, y, z)
+            seen[#seen + 1] = { x, y, z, u = rec.drawn[k] and rec.drawn[k].u }
+        end
+    end)
+
+    -- Read back every square walked, so the cache and each room's live state
+    -- (rec.roomLit) are what was just left; an unloaded switch of a room put
+    -- out here loads with the room's state (IsoLightSwitch.load). What its
+    -- squares stop burning comes off the backup's fuel units too.
+    local chunks, unitsOff = {}, 0
+    for i = 1, #seen do
+        local s = seen[i]
+        readSquare(rec, s[1], s[2], s[3])
+        chunks[math.floor(s[1] / 8) .. "," .. math.floor(s[2] / 8)] = true
+        if s.u then
+            local e = rec.drawn[key(s[1], s[2], s[3])]
+            unitsOff = unitsOff + math.max(0, s.u - (e and e.u or 0))
+        end
+    end
+    if rec.plan and rec.plan.extra and OffGrid.Distrib then
+        OffGrid.Distrib.forgetChunks(rec, chunks)
+    end
+
+    -- What stays lit out of reach: lamps by their watts, less the ones nobody
+    -- can switch (fx), and rooms still lit by key, each once.
+    local far, farRooms = 0, {}
+    for k, e in pairs(rec.drawn) do
+        if (e.kinds and e.kinds.light) or e.rl then
+            local x, y, z = unkey(k)
+            if x and not getSquare(x, y, z) then
+                local lampW = (e.kinds and e.kinds.light or 0) - (e.fx or 0)
+                far = far + math.floor(math.max(0, lampW) / LIGHT_W + 0.5)
+                for rk in pairs(e.rl or {}) do
+                    if not farRooms[rk] and roomOn(rec, rk, true) then
+                        farRooms[rk] = true
+                        far = far + 1
+                    end
+                end
+            end
+        end
+    end
+
+    local n = nRooms + lamps
+    local was = rec.load or 0
+    publishCache(rec)
+    if not rec.swept then
+        -- The first sweep (just after wiring a building, or after a load)
+        -- never lowers the load or its fuel units, so what was switched off
+        -- here comes out of both now: TOTAL would otherwise wait the best part
+        -- of an hour for the sweep, and a backup burn petrol for dark rooms.
+        local total = cacheTotals(rec)
+        rec.load = math.max(total, was - n * LIGHT_W)
+        rec.loadUnits = math.max(0, (rec.loadUnits or 0) - unitsOff)
+    end
+    -- The sweep's running sum for this pass still holds what the squares it
+    -- has passed drew before, and a pass publishes that sum when it ends: a
+    -- lamp it had summed came back for a whole pass. Start the pass again,
+    -- so the next total it publishes is read from the lights as they are.
+    rec.slice = 0
+    rec.sw = nil
+    rec.syncIn = 0
+
+    if t0 and getTimestampMs then
+        print(string.format("OffGrid: LIGHTS OFF walked %d squares in %d ms: %d off, %d out of reach, %d stuck",
+                            squares, getTimestampMs() - t0, n, far, stuck))
+    end
+    if n > 0 and far > 0 then
+        tell(playerObj, "IGUI_OffGrid_LightsOffDoneFar", n, n * LIGHT_W, far)
+    elseif n > 0 then
+        tell(playerObj, "IGUI_OffGrid_LightsOffDone", n, n * LIGHT_W)
+    elseif far > 0 then
+        tell(playerObj, "IGUI_OffGrid_LightsOffFar", far)
+    elseif stuck > 0 then
+        -- never "none" while LOADS still lists a light he cannot switch
+        tell(playerObj, "IGUI_OffGrid_LightsOffStuck", stuck)
+    else
+        tell(playerObj, "IGUI_OffGrid_LightsOffNone")
     end
 end
 
@@ -2433,6 +2727,7 @@ Events.OnClientCommand.Add(onClientCommand)
 local INTERNAL = {
     key = key, objectOn = objectOn, chunkLoaded = chunkLoaded, sync = sync,
     readSquare = readSquare, cacheTotals = cacheTotals, foldKinds = foldKinds,
+    roomWatts = roomWatts, publishCache = publishCache,
     eachPlayer = eachPlayer, powerRadius = powerRadius, powerLevels = powerLevels,
     touchSystem = touchSystem, recordOf = recordOf, controllerAt = controllerAt,
     NEAR = NEAR, SLICES = SLICES, REACH = REACH, POWER_HOLD = POWER_HOLD,

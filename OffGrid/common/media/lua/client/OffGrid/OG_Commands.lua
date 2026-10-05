@@ -6,7 +6,8 @@
      is translated here, in the player's language. `warn` says it is a
      refusal, drawn in the warning colour (P.haloNote, Can 2026-09-29); a
      note without it keeps the game's own colour. It is the only command
-     the server sends.
+     the server sends. A note may carry up to three numbers (`a1`..`a3`,
+     S.lightsOff's counts) for the key's {1}..{3}.
 ]]
 
 require "OffGrid/OG_Parts"
@@ -23,7 +24,15 @@ local function onServerCommand(module, command, args)
             playerObj = getPlayerByOnlineID(args.id)
         end
         playerObj = playerObj or getSpecificPlayer(0)
-        OffGrid.Parts.haloNote(playerObj, getText(args.key), args.warn == true)
+        -- Numbers only, filled into the key's {1}..{3}.
+        local a1, a2, a3 = tonumber(args.a1), tonumber(args.a2), tonumber(args.a3)
+        local text
+        if a1 ~= nil then
+            text = OffGrid.Parts.txt(args.key, a1, a2, a3)
+        else
+            text = getText(args.key)
+        end
+        OffGrid.Parts.haloNote(playerObj, text, args.warn == true)
     end
 end
 

@@ -442,6 +442,60 @@ function OG_ResetBreaker:new(character, object, on)
     return o
 end
 
+------------------------------------------------------------ lights off
+
+--- LIGHTS OFF on the LOADS page (Can, 2026-10-02): a short action at the
+--  controller, as long as a breaker throw, whose completion on the authority
+--  switches off every light the system pays for (OG_System S.lightsOff,
+--  which asks the controller's lock again).
+OG_LightsOff = ISBaseTimedAction:derive("OG_LightsOff")
+
+function OG_LightsOff:isValid()
+    return self.object and self.object:getObjectIndex() ~= -1
+end
+
+function OG_LightsOff:waitToStart()
+    self.character:faceThisObject(self.object)
+    return self.character:shouldBeTurning()
+end
+
+function OG_LightsOff:update()
+    self.character:faceThisObject(self.object)
+end
+
+function OG_LightsOff:start()
+    self:setActionAnim("Loot")
+    self.character:reportEvent("EventLootItem")
+end
+
+function OG_LightsOff:stop()
+    ISBaseTimedAction.stop(self)
+end
+
+function OG_LightsOff:perform()
+    ISBaseTimedAction.perform(self)
+end
+
+function OG_LightsOff:complete()
+    -- Same contract as OG_ResetBreaker: a no-op is a clean finish.
+    if not self.object or self.object:getObjectIndex() == -1 then return true end
+    local S = OffGrid.System
+    if S and S.lightsOff then S.lightsOff(self.character, self.object) end
+    return true
+end
+
+function OG_LightsOff:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 25
+end
+
+function OG_LightsOff:new(character, object)
+    local o = ISBaseTimedAction.new(self, character)
+    o.object = object
+    o.maxTime = o:getDuration()
+    return o
+end
+
 --------------------------------------------------------------- running cable
 
 --  Connecting costs time and nothing else. There is no cable item: the mod

@@ -26,7 +26,7 @@
     "Tooltip_OffGrid_BkBarrelFar": "Çok uzak: en fazla 5 kare.",
     "Tooltip_OffGrid_BkBarrelMixed": "İçinde benzinden başka bir şey var. Önce boşalt.",
     "Tooltip_OffGrid_BkBarrelTaken": "Bu varil zaten bir jeneratörü besliyor.",
-    "Tooltip_OffGrid_BkConvert": "Bir Off-Grid kontrol ünitesinin yedeği olur: ondan bir kontrol ünitesine kablo çek, kontrol ünitesi onu çalıştırıp durdurur. Off-Grid bu kayıttan kaldırılırsa bu jeneratör de onunla birlikte kaldırılır. Önce onu normal jeneratöre dönüştür.",
+    "Tooltip_OffGrid_BkConvert": "Bu jeneratörü bir Off-Grid yedek jeneratörüne dönüştür. Dönüştürdükten sonra bu jeneratörden bir kontrol ünitesine kablo çekip onu kontrol ünitesinin ekranından yönetebilirsin.",
     "Tooltip_OffGrid_BkCutFirst": "Önce kablosunu kes.",
     "Tooltip_OffGrid_BkFeedsFull": "En fazla sekiz varil.",
     "Tooltip_OffGrid_BkFireOut": "Önce yangını söndür.",
