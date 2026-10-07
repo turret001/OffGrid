@@ -151,6 +151,17 @@ function C.dimUnavailable(menu)
             o.color = { r = d.r, g = d.g, b = d.b }
         end
     end
+    -- Project Viewpoint's first-person list shows names, not tooltips: there
+    -- the reason goes into the name (OG_Viewpoint).
+    local VP = OffGrid.Viewpoint
+    if VP and VP.explain then VP.explain(menu) end
+end
+
+--- Is Project Viewpoint's 3D view on? What Off-Grid draws on the ground is
+--  not shown there (OG_Viewpoint).
+local function in3D()
+    local VP = OffGrid.Viewpoint
+    return VP ~= nil and VP.in3D ~= nil and VP.in3D()
 end
 
 --- Ask the authority to do something. On a multiplayer client that is a
@@ -1155,6 +1166,8 @@ function C.coverageMenu(menu, target, playerObj)
     local tip = ISWorldObjectContextMenu.addToolTip()
     tip.description = getText("Tooltip_OffGrid_Coverage")
     option.toolTip = tip
+    -- Hiding always works; showing draws nothing in Viewpoint's 3D view.
+    if not shown and in3D() then greyed(option, "Tooltip_OffGrid_TopDownOnly") end
 end
 
 --- Wire up the building, Choose buildings..., Unwire the buildings.
@@ -1182,6 +1195,8 @@ function C.buildingMenu(menu, worldobjects, target, playerObj, part)
                         menu, "chooseBuildings")
     pick.toolTip = C.tip(getText("Tooltip_OffGrid_ChooseBuildings"))
     greyed(pick, lock)
+    -- The Building Picker is drawn and clicked on the top-down view.
+    if not lock and in3D() then greyed(pick, "Tooltip_OffGrid_TopDownOnly") end
     if n > 0 then
         local opt = C.icon(menu:addOption(P.txt("ContextMenu_OffGrid_UnwireBuildings", n), worldobjects,
                                           C.onUnwireBuildings, target, playerObj),

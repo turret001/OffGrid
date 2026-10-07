@@ -1,0 +1,5 @@
+newmtl offgrid
+Kd 1 1 1
+d 1
+illum 1
+map_Kd offgrid_palette.png

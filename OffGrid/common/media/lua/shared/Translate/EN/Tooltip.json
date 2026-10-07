@@ -63,6 +63,7 @@
     "Tooltip_OffGrid_NeedScrewdriver": "Needs a screwdriver.",
     "Tooltip_OffGrid_Painted": "Painted with the Brush Tool: not a working controller.",
     "Tooltip_OffGrid_TooHeavy": "Too heavy for what you are carrying.",
+    "Tooltip_OffGrid_TopDownOnly": "Only in the top-down view. Switch to it first.",
     "Tooltip_OffGrid_UnwireBuildings": "Stops powering the buildings this part wired. Its own reach stays.",
     "Tooltip_OffGrid_WireBuilding": "Powers every floor of the building this stands in or next to, whenever the system has power. Power can reach a few tiles past its walls. Whatever runs in there draws on the batteries.",
     "Tooltip_Recipe_OffGridSkyReading": "Knowledge of reading the coming weather from the sky."

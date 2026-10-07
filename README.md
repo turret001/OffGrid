@@ -9,7 +9,7 @@ the batteries run low.
 - **Steam Workshop:** https://steamcommunity.com/sharedfiles/filedetails/?id=3789425624
 - **How it works:** see the [wiki](https://github.com/turret001/OffGrid/wiki)
 - **FAQ:** [short answers to common questions](https://github.com/turret001/OffGrid/wiki/FAQ)
-- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 3.1.0 · **Game:** Build 42
+- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 3.1.1 · **Game:** Build 42
 
 ![Build your first rig](images/01-build-your-first-rig.png)
 
@@ -40,6 +40,9 @@ an issue here.
 - **LG Extended Electricity:** Off-Grid tells it the charge controller is not a petrol generator.
 - **Better Generator Info:** the controller is a real generator, so its overlay can include a running one. A backup
   generator is not a generator to other mods: their generator features and overlays do not see it.
+- **Project Viewpoint:** every part shows in its first-person 3D view and works from its interaction menu. Power
+  coverage and choosing buildings work in the top-down view only. The 3D models are generated from the same shapes
+  as the tiles.
 
 ## Credits
 

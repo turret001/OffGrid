@@ -63,6 +63,7 @@
     "Tooltip_OffGrid_NeedScrewdriver": "Tornavida gerekiyor.",
     "Tooltip_OffGrid_Painted": "Fırça Aracı ile boyanmış: çalışan bir kontrol ünitesi değil.",
     "Tooltip_OffGrid_TooHeavy": "Taşıdıklarınla birlikte fazla ağır.",
+    "Tooltip_OffGrid_TopDownOnly": "Yalnızca yukarıdan görünümde. Önce ona geç.",
     "Tooltip_OffGrid_UnwireBuildings": "Bu parçanın bağladığı binalara elektrik vermeyi keser. Kendi menzili kalır.",
     "Tooltip_OffGrid_WireBuilding": "Sistemde güç varken içinde ya da yanında durduğu binanın her katına elektrik verir. Elektrik duvarların birkaç kare ötesine taşabilir. İçeride çalışan her şey akülerden çeker.",
     "Tooltip_Recipe_OffGridSkyReading": "Gökyüzüne bakarak havanın nasıl gideceğini okuma bilgisi."
