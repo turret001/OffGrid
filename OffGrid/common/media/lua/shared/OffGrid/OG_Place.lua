@@ -730,6 +730,72 @@ end
 
 ----------------------------------------------------------------- the hooks
 
+-- Every wrapper of ISMoveableSpriteProps below goes through hook(), which keeps
+-- it on top of whatever another mod does to the same function later.
+--
+-- A mod that REPLACES one of these functions outright, rather than wrapping
+-- it, throws Off-Grid's wrapper away when it loads after Off-Grid. Place
+-- Anywhere (Workshop 3613917826) replaces placeMoveableInternal and
+-- canPlaceMoveableInternal at file load; with it later in the mod list a
+-- placed controller stayed the plain tile vanilla builds, never the working
+-- IsoGenerator, and right-clicking it said it was painted with the Brush Tool
+-- (Workshop comments, October 2026; reproduced 2026-10-18).
+-- GridInventory (Workshop 3782313362) replaces findInInventory at
+-- OnGameStart, which dropped the rotation's own item (see `rot`).
+--
+-- So G.keepHooks, run once everything has loaded (the events at the end of
+-- this section), wraps Off-Grid's check again around whatever stands there
+-- now. A mod that WRAPPED Off-Grid's function instead ends up with a layer of
+-- Off-Grid both above and below it; `busy` lets only the outermost one act,
+-- and the inner one hands straight on to what it wrapped. Vanilla never calls
+-- one of these functions from inside itself (ISMoveableSpriteProps.lua:
+-- placeMoveableInternal at 2009, 2038, 2051, pickUpMoveableInternal at 1281,
+-- 1299, all one after another), so the guard never skips a real second call.
+local hooks = {}
+local busy = {}
+
+--- Wrap ISMoveableSpriteProps[name]. `make(orig)` returns the wrapper body,
+--  handed the function it wraps. Nothing happens when vanilla lacks it.
+local function hook(name, make)
+    local orig = ISMoveableSpriteProps[name]
+    if not orig then return end
+    local rec = { name = name }
+    function rec.install(base)
+        local body = make(base)
+        rec.fn = function(self, ...)
+            if busy[name] then return base(self, ...) end
+            busy[name] = true
+            -- pcall, so an error inside vanilla or another mod can never
+            -- leave the guard up and Off-Grid switched off until a reload.
+            -- Every body returns one value, as these wrappers always have.
+            local ok, res = pcall(body, self, ...)
+            busy[name] = nil
+            if not ok then error(res, 0) end
+            return res
+        end
+        ISMoveableSpriteProps[name] = rec.fn
+    end
+    rec.install(orig)
+    hooks[#hooks + 1] = rec
+end
+
+--- Put Off-Grid's wrappers back on top of any function another mod replaced
+--  since. Returns how many it put back.
+function G.keepHooks()
+    local n = 0
+    for i = 1, #hooks do
+        local rec = hooks[i]
+        local now = ISMoveableSpriteProps[rec.name]
+        if now and now ~= rec.fn then
+            rec.install(now)
+            n = n + 1
+            print("OffGrid: another mod changed ISMoveableSpriteProps." .. rec.name
+                  .. "; Off-Grid's rules are wrapped around it again")
+        end
+    end
+    return n
+end
+
 -- Up to 42.20, placeMoveableInternal is handed a square, an item and a sprite
 -- name, and no character (42.21 puts the placer first; see the wrapper
 -- below). The props object does not carry one either (grepped: vanilla
@@ -742,17 +808,18 @@ end
 -- it names (the `...`), so a parameter a game update appends reaches vanilla
 -- instead of being dropped here.
 local placing = nil
-local origPlaceOuter = ISMoveableSpriteProps.placeMoveable
-function ISMoveableSpriteProps:placeMoveable(character, square, origSpriteName, forceAllow, ...)
-    local prev = placing
-    placing = character
-    -- vanilla returns false on refusal and nothing on success: one value
-    local ok, res = pcall(origPlaceOuter, self, character, square, origSpriteName,
-                          forceAllow, ...)
-    placing = prev
-    if not ok then error(res, 0) end
-    return res
-end
+hook("placeMoveable", function(origPlaceOuter)
+    return function(self, character, square, origSpriteName, forceAllow, ...)
+        local prev = placing
+        placing = character
+        -- vanilla returns false on refusal and nothing on success: one value
+        local ok, res = pcall(origPlaceOuter, self, character, square, origSpriteName,
+                              forceAllow, ...)
+        placing = prev
+        if not ok then error(res, 0) end
+        return res
+    end
+end)
 
 -- A ROTATION in progress. Vanilla's rotateMoveable is a pick-up with the gate
 -- switched off (_forceAllow) followed by a place (ISMoveableSpriteProps.lua:
@@ -789,9 +856,8 @@ local function movablesCheat(character)
            or (ISMoveableDefinitions and ISMoveableDefinitions.cheat == true)
 end
 
-local origRotate = ISMoveableSpriteProps.rotateMoveable
-if origRotate then
-    function ISMoveableSpriteProps:rotateMoveable(character, square, origSpriteName, ...)
+hook("rotateMoveable", function(origRotate)
+    return function(self, character, square, origSpriteName, ...)
         local obj = nil
         if square and origSpriteName and P.spriteInfo(origSpriteName) then
             obj = partWearing(square, origSpriteName)
@@ -813,7 +879,7 @@ if origRotate then
         if not ok then error(res, 0) end
         return res
     end
-end
+end)
 
 -- The Rotate cursor, up front. Its colour, and whether a click queues
 -- anything at all, come from canRotateMoveable, asked every frame
@@ -824,15 +890,14 @@ end
 -- the walk and the whole bar. Only ever adds a refusal. The owner and
 -- screwdriver locks need the character, so they refuse on the click instead
 -- (walkToAndEquip, below).
-local origCanRotate = ISMoveableSpriteProps.canRotateMoveable
-if origCanRotate then
-    function ISMoveableSpriteProps:canRotateMoveable(square, object, origProps, ...)
+hook("canRotateMoveable", function(origCanRotate)
+    return function(self, square, object, origProps, ...)
         local allowed = origCanRotate(self, square, object, origProps, ...)
         if not allowed then return allowed end
         if running(object) then return false end
         return allowed
     end
-end
+end)
 
 -- And the reason, in the cursor's own info panel. getInfoPanelFlagsPerTile is
 -- where vanilla marks a lit barbecue it will not let you lift, "Needs to be
@@ -840,9 +905,8 @@ end
 -- rotate mode the panel's "Can rotate." is canManuallyRotate, which knows
 -- nothing of the refusal above (787, drawn at 677-680). Vanilla's own
 -- strings, so every language has them.
-local origFlagsPerTile = ISMoveableSpriteProps.getInfoPanelFlagsPerTile
-if origFlagsPerTile then
-    function ISMoveableSpriteProps:getInfoPanelFlagsPerTile(square, object, player, mode, ...)
+hook("getInfoPanelFlagsPerTile", function(origFlagsPerTile)
+    return function(self, square, object, player, mode, ...)
         local res = origFlagsPerTile(self, square, object, player, mode, ...)
         if (mode == "rotate" or mode == "pickup") and InfoPanelFlags and running(object) then
             InfoPanelFlags.isOperational = true
@@ -850,7 +914,7 @@ if origFlagsPerTile then
         end
         return res
     end
-end
+end)
 
 -- The Rotate cursor's click, for the locks that need the character. The
 -- cursor's create queues a rotation only when walkToAndEquip answers yes
@@ -863,9 +927,8 @@ end
 -- colour is canRotateMoveable's answer and that has no character. Only ever
 -- adds a refusal, before vanilla has walked anywhere, and the rotateMoveable
 -- wrapper above still refuses on the authority.
-local origWalkTo = ISMoveableSpriteProps.walkToAndEquip
-if origWalkTo then
-    function ISMoveableSpriteProps:walkToAndEquip(character, square, mode, spriteName, ...)
+hook("walkToAndEquip", function(origWalkTo)
+    return function(self, character, square, mode, spriteName, ...)
         if mode == "rotate" and character and square and self.spriteName
                 and P.spriteInfo(self.spriteName) then
             local obj = partWearing(square, self.spriteName)
@@ -876,11 +939,10 @@ if origWalkTo then
         end
         return origWalkTo(self, character, square, mode, spriteName, ...)
     end
-end
+end)
 
-local origFind = ISMoveableSpriteProps.findInInventory
-if origFind then
-    function ISMoveableSpriteProps:findInInventory(character, spriteName, ...)
+hook("findInInventory", function(origFind)
+    return function(self, character, spriteName, ...)
         local it = rot and rot.item
         if it and rot.character == character then
             local inv = try(character, "getInventory")
@@ -891,7 +953,7 @@ if origFind then
         end
         return origFind(self, character, spriteName, ...)
     end
-end
+end)
 
 --- Who owns a part that has just landed. A rotation keeps whoever owned it,
 --  and never claims a legacy ownerless part for the rotator; every other
@@ -919,56 +981,56 @@ local function placeArgs(a1, a2, a3, a4)
     return nil, a1, a2, a3
 end
 
-local origPlace = ISMoveableSpriteProps.placeMoveableInternal
-function ISMoveableSpriteProps:placeMoveableInternal(...)
-    local character, square, item, spriteName = placeArgs(...)
-    local info = P.spriteInfo(spriteName)
-    -- the original gets exactly what it was handed, in either form
-    local obj = origPlace(self, ...)
-    -- A multiplayer client never completes a real placement: vanilla runs
-    -- every one on the server, from ISMoveablesAction:complete, in 42.20.4
-    -- and 42.21 alike. What reaches this on a client is the admin brush
-    -- tool: on 42.20.4 the admin's own client places the tile locally, and
-    -- on 42.21 the server builds it and every client in range places it
-    -- again on its own copy (the OnTileObjectAdded echo,
-    -- ISBrushToolTileCursor.lua:21-23). The follow-up below belongs to the
-    -- authority. On a client, makeController's transmitRemoveItemFromSquare
-    -- sends a bare object index and the server deletes whatever it holds
-    -- there, on 42.21 the tile just brushed; the rest writes client-only
-    -- state the server never has. So vanilla's object goes back untouched.
-    if isClient() then return obj end
-    if not info or not square then return obj end
-    if info.kind == "controller" then
-        local gen = G.makeController(square, item, info, obj)
-        claim(gen, character)
-        G.push(gen)
-        return gen
-    end
-    if info.kind == "lamp" then
-        -- A solar lamp is a vanilla light that vanilla has just built from the
-        -- tile's lightswitch property; OG_Lamps gives it its battery. It is
-        -- never part of a system, so G.seed is not for it.
-        P.scrubCarried(obj)
+hook("placeMoveableInternal", function(origPlace)
+    return function(self, ...)
+        local character, square, item, spriteName = placeArgs(...)
+        local info = P.spriteInfo(spriteName)
+        -- the original gets exactly what it was handed, in either form
+        local obj = origPlace(self, ...)
+        -- A multiplayer client never completes a real placement: vanilla runs
+        -- every one on the server, from ISMoveablesAction:complete, in 42.20.4
+        -- and 42.21 alike. What reaches this on a client is the admin brush
+        -- tool: on 42.20.4 the admin's own client places the tile locally, and
+        -- on 42.21 the server builds it and every client in range places it
+        -- again on its own copy (the OnTileObjectAdded echo,
+        -- ISBrushToolTileCursor.lua:21-23). The follow-up below belongs to the
+        -- authority. On a client, makeController's transmitRemoveItemFromSquare
+        -- sends a bare object index and the server deletes whatever it holds
+        -- there, on 42.21 the tile just brushed; the rest writes client-only
+        -- state the server never has. So vanilla's object goes back untouched.
+        if isClient() then return obj end
+        if not info or not square then return obj end
+        if info.kind == "controller" then
+            local gen = G.makeController(square, item, info, obj)
+            claim(gen, character)
+            G.push(gen)
+            return gen
+        end
+        if info.kind == "lamp" then
+            -- A solar lamp is a vanilla light that vanilla has just built from the
+            -- tile's lightswitch property; OG_Lamps gives it its battery. It is
+            -- never part of a system, so G.seed is not for it.
+            P.scrubCarried(obj)
+            claim(obj, character)
+            -- a turn is a lift and a place: the lamp keeps its switch and its night
+            if OffGrid.Lamps then OffGrid.Lamps.placed(obj, item, rot ~= nil) end
+            G.push(obj)
+            return obj
+        end
+        G.seed(obj, item, info)
         claim(obj, character)
-        -- a turn is a lift and a place: the lamp keeps its switch and its night
-        if OffGrid.Lamps then OffGrid.Lamps.placed(obj, item, rot ~= nil) end
         G.push(obj)
         return obj
     end
-    G.seed(obj, item, info)
-    claim(obj, character)
-    G.push(obj)
-    return obj
-end
+end)
 
 -- One part of each kind per square. A node in the wiring graph is
 -- x,y,z,kind (M.nodeKey), and every lookup takes the first part of a kind on
 -- a square, so a second one could never be wired: vanilla only refuses a wall
 -- object of the SAME facing (ISMoveableSpriteProps.lua:1666-1675), which let
 -- a corner take a south rack and an east rack. Only ever adds a refusal.
-local origCanPlace = ISMoveableSpriteProps.canPlaceMoveableInternal
-if origCanPlace then
-    function ISMoveableSpriteProps:canPlaceMoveableInternal(character, square, item, forceTypeObject, ...)
+hook("canPlaceMoveableInternal", function(origCanPlace)
+    return function(self, character, square, item, forceTypeObject, ...)
         local allowed = origCanPlace(self, character, square, item, forceTypeObject, ...)
         if not allowed then return allowed end
         local info = self.spriteName and P.spriteInfo(self.spriteName)
@@ -987,16 +1049,17 @@ if origCanPlace then
         end
         return allowed
     end
-end
+end)
 
-local origCanPick = ISMoveableSpriteProps.canPickUpMoveableInternal
-function ISMoveableSpriteProps:canPickUpMoveableInternal(character, square, object, isMulti, ...)
-    -- Ask the base first and never overturn a refusal. Whatever else is
-    -- installed still gets to say no; this only adds a reason to.
-    local allowed = origCanPick(self, character, square, object, isMulti, ...)
-    if not allowed then return false end
-    return G.mayTake(character, square, object)
-end
+hook("canPickUpMoveableInternal", function(origCanPick)
+    return function(self, character, square, object, isMulti, ...)
+        -- Ask the base first and never overturn a refusal. Whatever else is
+        -- installed still gets to say no; this only adds a reason to.
+        local allowed = origCanPick(self, character, square, object, isMulti, ...)
+        if not allowed then return false end
+        return G.mayTake(character, square, object)
+    end
+end)
 
 -- A pick-up names its target by the sprite it wore when the action was
 -- QUEUED (ISMoveablesAction.new builds moveProps from the object then), and
@@ -1007,9 +1070,8 @@ end
 -- running out with the part still standing. Refresh the name from the very
 -- object the action captured, only for Off-Grid sprites, and only while that
 -- object is still on the square. Every gate after this runs unchanged.
-local origPickOuter = ISMoveableSpriteProps.pickUpMoveable
-if origPickOuter then
-    function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, forceAllow, ...)
+hook("pickUpMoveable", function(origPickOuter)
+    return function(self, character, square, createItem, forceAllow, ...)
         local o = self.object
         if o and square and self.spriteName and P.spriteInfo(self.spriteName)
                 and P.partOf(o) then
@@ -1025,7 +1087,7 @@ if origPickOuter then
         end
         return origPickOuter(self, character, square, createItem, forceAllow, ...)
     end
-end
+end)
 
 --- Is another Off-Grid part of this kind still standing on the square?
 --  Graph nodes are x,y,z,kind, so a twin (a pair older builds allowed) holds
@@ -1040,138 +1102,158 @@ local function kindRemains(square, object, kind)
     return false
 end
 
-local origPick = ISMoveableSpriteProps.pickUpMoveableInternal
-function ISMoveableSpriteProps:pickUpMoveableInternal(character, square, object,
-                                                      sprInstance, spriteName,
-                                                      createItem, rotating, ...)
-    local info = object and P.describe(object)
-    if info then
-        G.stow(object, square, rotating)
-        -- Picking a part up unplugs it NOW, on the authority. Its edge used
-        -- to stay in the controller's graph until the next half-hourly
-        -- relink noticed the square was empty, and a part put back down on
-        -- the same square inside that window was still reachable from the
-        -- old controller while reading loose, so it could be wired into a
-        -- second system and be counted by both, for good.
-        if not rotating and info.kind ~= "controller" and info.kind ~= "lamp"
-                and not isClient()
-                and OffGrid.System and OffGrid.System.unplug and square
-                and not kindRemains(square, object, info.kind) then
-            OffGrid.System.unplug(M.nodeKey(square:getX(), square:getY(),
-                                            square:getZ(), info.kind),
-                                  P.data(object).sys)
+hook("pickUpMoveableInternal", function(origPick)
+    return function(self, character, square, object, sprInstance, spriteName,
+                    createItem, rotating, ...)
+        local info = object and P.describe(object)
+        if info then
+            G.stow(object, square, rotating)
+            -- Picking a part up unplugs it NOW, on the authority. Its edge used
+            -- to stay in the controller's graph until the next half-hourly
+            -- relink noticed the square was empty, and a part put back down on
+            -- the same square inside that window was still reachable from the
+            -- old controller while reading loose, so it could be wired into a
+            -- second system and be counted by both, for good.
+            if not rotating and info.kind ~= "controller" and info.kind ~= "lamp"
+                    and not isClient()
+                    and OffGrid.System and OffGrid.System.unplug and square
+                    and not kindRemains(square, object, info.kind) then
+                OffGrid.System.unplug(M.nodeKey(square:getX(), square:getY(),
+                                                square:getZ(), info.kind),
+                                      P.data(object).sys)
+            end
         end
-    end
-    -- Vanilla fires the removal event inside this call; a lifted part is not
-    -- a destroyed one (see "a part leaving the world").
-    local wasKept = removal.kept[object]
-    if object then removal.kept[object] = true end
-    local ok, item = pcall(origPick, self, character, square, object, sprInstance,
-                           spriteName, createItem, rotating, ...)
-    if object then removal.kept[object] = wasKept end
-    if not ok then error(item, 0) end
-    -- A controller lifted for good hands over what it held now, once the
-    -- pick-up has really happened and it is off the square (see S.retire,
-    -- which also covers a second controller left standing there). A rotation
-    -- carries the system on.
-    if info and info.kind == "controller" and not rotating and not isClient()
-            and OffGrid.System and OffGrid.System.retire and square then
-        OffGrid.System.retire(square:getX(), square:getY(), square:getZ(),
-                              P.data(object).wire)
-    end
-    if rot and rotating and item and info and rot.character == character then
-        rot.item = item
-    end
-    -- A lamp's charge is the engine's, drained every minute it is lit; take
-    -- the figure now, not the one its last tick wrote, before it is copied.
-    -- The bulb and its colour too (vanilla carries neither for an item with
-    -- a CustomItem; OG_Lamps.placed puts them back).
-    if info and info.kind == "lamp" and OffGrid.Lamps and object then
-        local d = P.data(object)
-        d.charge = OffGrid.Lamps.charge(object)
-        d.nobulb = (not object:hasLightBulb()) or nil
-        d.bulb = try(object, "getBulbItem")
-        d.lightR = try(object, "getPrimaryR")
-        d.lightG = try(object, "getPrimaryG")
-        d.lightB = try(object, "getPrimaryB")
-        -- whether it was lit, for a turn (OG_Lamps.placed)
-        d.lit = (try(object, "isActivated") == true) or nil
-    end
-    -- carry the remaining state onto the item so placing it again restores it
-    if item and object and item.getModData then
-        local d = object:getModData() and object:getModData().offgrid
-        if d then
-            local copy = {}
-            for k, v in pairs(d) do
-                if type(v) ~= "table" and type(v) ~= "userdata" then copy[k] = v end
-            end
-            -- Wiring does NOT travel. `sys` says which system a part belongs
-            -- to and `wire` is a controller's whole graph, and both are
-            -- strings, so without this they survive the copy above and a panel
-            -- put back down elsewhere claims to be connected to a system it is
-            -- nowhere near. Picking a part up unplugs it, which is also what
-            -- anyone would expect it to do.
-            --
-            -- A ROTATION IS NOT A PICK-UP, even though one of vanilla's two
-            -- rotate paths is implemented as one. It puts the object back on
-            -- the same square, so every edge still points at the right place
-            -- and unplugging it would be wrong: the player turned a panel and
-            -- their system went dark. The other path rotates in place and
-            -- never reaches here at all.
-            if not rotating then
-                copy.sys = nil
-                copy.wire = nil
-                -- Nor do the buildings it wired (bw, and their footprints in
-                -- bwr): put down elsewhere it would claim a house it no
-                -- longer reaches, and the registry would light it.
-                copy.bw = nil
-                copy.bwr = nil
-                -- A backup generator carries its brand, tank and condition and
-                -- nothing about the spot it stood on: its barrels (their hoses
-                -- are on the floor already, G.stow), whether it ran, a fault
-                -- the next tick judges again (NO FUEL, INDOORS, OFF BY
-                -- SERVER), wear remainder, Auto timers, its own AUTO switch
-                -- and backfire counter. Put down, it starts as a fresh one
-                -- does (P.data, G.seed). Its FAULT is not about the spot and
-                -- rides along, and only a repair clears it: a worn-out one
-                -- follows the condition, and a burnt one ("fire") is Can's
-                -- rule, 2026-09-27: "After a fire it stays where it is,
-                -- stopped with FAULT; a repair clears it."
-                copy.feeds, copy.run, copy.since = nil, nil, nil
-                if copy.fault ~= "fault" and copy.fault ~= "fire" then copy.fault = nil end
-                copy.wear, copy.rest, copy.at, copy.auto, copy.bf = nil, nil, nil, nil, nil
-                -- A controller keeps its generator Auto switch and levels
-                -- (bkAuto, bkStart, bkStop) but not its backups' mirror, the
-                -- sun timer or the GEN figures: its units are released with
-                -- the system, and the next tick writes the rest.
-                copy.bkMirror, copy.bkSunSince, copy.bkCap, copy.bkW = nil, nil, nil, nil
-                copy.bkN, copy.bkStartNow, copy.bkStopNow = nil, nil, nil
-            end
-            -- The loop above drops every table, which is right for `wire` and
-            -- wrong for the cells. It has always been wrong for them: the old
-            -- `cellTypes` was a table too, so a rack that was picked up and
-            -- put back down came back with its batteries all reset to
-            -- CarBattery1. Now that a cell also carries its own condition,
-            -- losing the list would heal every battery in a rotated rack, so
-            -- it is copied out explicitly, element by element. The bay rides
-            -- along, or a turned rack put its batteries back in list order.
-            if d.cellList then
-                local cells = {}
-                for i = 1, #d.cellList do
-                    local c = d.cellList[i]
-                    cells[i] = { id = c.id, type = c.type, health = c.health,
-                                 bay = c.bay }
+        -- Vanilla fires the removal event inside this call; a lifted part is not
+        -- a destroyed one (see "a part leaving the world").
+        local wasKept = removal.kept[object]
+        if object then removal.kept[object] = true end
+        local ok, item = pcall(origPick, self, character, square, object, sprInstance,
+                               spriteName, createItem, rotating, ...)
+        if object then removal.kept[object] = wasKept end
+        if not ok then error(item, 0) end
+        -- A controller lifted for good hands over what it held now, once the
+        -- pick-up has really happened and it is off the square (see S.retire,
+        -- which also covers a second controller left standing there). A rotation
+        -- carries the system on.
+        if info and info.kind == "controller" and not rotating and not isClient()
+                and OffGrid.System and OffGrid.System.retire and square then
+            OffGrid.System.retire(square:getX(), square:getY(), square:getZ(),
+                                  P.data(object).wire)
+        end
+        if rot and rotating and item and info and rot.character == character then
+            rot.item = item
+        end
+        -- A lamp's charge is the engine's, drained every minute it is lit; take
+        -- the figure now, not the one its last tick wrote, before it is copied.
+        -- The bulb and its colour too (vanilla carries neither for an item with
+        -- a CustomItem; OG_Lamps.placed puts them back).
+        if info and info.kind == "lamp" and OffGrid.Lamps and object then
+            local d = P.data(object)
+            d.charge = OffGrid.Lamps.charge(object)
+            d.nobulb = (not object:hasLightBulb()) or nil
+            d.bulb = try(object, "getBulbItem")
+            d.lightR = try(object, "getPrimaryR")
+            d.lightG = try(object, "getPrimaryG")
+            d.lightB = try(object, "getPrimaryB")
+            -- whether it was lit, for a turn (OG_Lamps.placed)
+            d.lit = (try(object, "isActivated") == true) or nil
+        end
+        -- carry the remaining state onto the item so placing it again restores it
+        if item and object and item.getModData then
+            local d = object:getModData() and object:getModData().offgrid
+            if d then
+                local copy = {}
+                for k, v in pairs(d) do
+                    if type(v) ~= "table" and type(v) ~= "userdata" then copy[k] = v end
                 end
-                copy.cellList = cells
-                copy.nextCellId = d.nextCellId
-            end
-            item:getModData().offgrid = copy
-            if item.setCondition and d.condition then
-                item:setCondition(math.floor(d.condition))
+                -- Wiring does NOT travel. `sys` says which system a part belongs
+                -- to and `wire` is a controller's whole graph, and both are
+                -- strings, so without this they survive the copy above and a panel
+                -- put back down elsewhere claims to be connected to a system it is
+                -- nowhere near. Picking a part up unplugs it, which is also what
+                -- anyone would expect it to do.
+                --
+                -- A ROTATION IS NOT A PICK-UP, even though one of vanilla's two
+                -- rotate paths is implemented as one. It puts the object back on
+                -- the same square, so every edge still points at the right place
+                -- and unplugging it would be wrong: the player turned a panel and
+                -- their system went dark. The other path rotates in place and
+                -- never reaches here at all.
+                if not rotating then
+                    copy.sys = nil
+                    copy.wire = nil
+                    -- Nor do the buildings it wired (bw, and their footprints in
+                    -- bwr): put down elsewhere it would claim a house it no
+                    -- longer reaches, and the registry would light it.
+                    copy.bw = nil
+                    copy.bwr = nil
+                    -- A backup generator carries its brand, tank and condition and
+                    -- nothing about the spot it stood on: its barrels (their hoses
+                    -- are on the floor already, G.stow), whether it ran, a fault
+                    -- the next tick judges again (NO FUEL, INDOORS, OFF BY
+                    -- SERVER), wear remainder, Auto timers, its own AUTO switch
+                    -- and backfire counter. Put down, it starts as a fresh one
+                    -- does (P.data, G.seed). Its FAULT is not about the spot and
+                    -- rides along, and only a repair clears it: a worn-out one
+                    -- follows the condition, and a burnt one ("fire") is Can's
+                    -- rule, 2026-09-27: "After a fire it stays where it is,
+                    -- stopped with FAULT; a repair clears it."
+                    copy.feeds, copy.run, copy.since = nil, nil, nil
+                    if copy.fault ~= "fault" and copy.fault ~= "fire" then copy.fault = nil end
+                    copy.wear, copy.rest, copy.at, copy.auto, copy.bf = nil, nil, nil, nil, nil
+                    -- A controller keeps its generator Auto switch and levels
+                    -- (bkAuto, bkStart, bkStop) but not its backups' mirror, the
+                    -- sun timer or the GEN figures: its units are released with
+                    -- the system, and the next tick writes the rest.
+                    copy.bkMirror, copy.bkSunSince, copy.bkCap, copy.bkW = nil, nil, nil, nil
+                    copy.bkN, copy.bkStartNow, copy.bkStopNow = nil, nil, nil
+                end
+                -- The loop above drops every table, which is right for `wire` and
+                -- wrong for the cells. It has always been wrong for them: the old
+                -- `cellTypes` was a table too, so a rack that was picked up and
+                -- put back down came back with its batteries all reset to
+                -- CarBattery1. Now that a cell also carries its own condition,
+                -- losing the list would heal every battery in a rotated rack, so
+                -- it is copied out explicitly, element by element. The bay rides
+                -- along, or a turned rack put its batteries back in list order.
+                if d.cellList then
+                    local cells = {}
+                    for i = 1, #d.cellList do
+                        local c = d.cellList[i]
+                        cells[i] = { id = c.id, type = c.type, health = c.health,
+                                     bay = c.bay }
+                    end
+                    copy.cellList = cells
+                    copy.nextCellId = d.nextCellId
+                end
+                item:getModData().offgrid = copy
+                if item.setCondition and d.condition then
+                    item:setCondition(math.floor(d.condition))
+                end
             end
         end
+        return item
     end
-    return item
+end)
+
+-- After everything has loaded, and again once a game has started: Place
+-- Anywhere replaces at file load, GridInventory at OnGameStart. OnLoad fires
+-- right after every OnGameStart handler (IngameState.java:768-769); a
+-- dedicated server never fires either and has OnServerStarted
+-- (GameServer.java:1533), after all of its Lua. The first tick catches a mod
+-- that does it from an OnLoad of its own.
+if Events then
+    local function keep() G.keepHooks() end
+    if Events.OnGameBoot then Events.OnGameBoot.Add(keep) end
+    if Events.OnLoad then Events.OnLoad.Add(keep) end
+    if Events.OnServerStarted then Events.OnServerStarted.Add(keep) end
+    if Events.OnTick then
+        local function once()
+            Events.OnTick.Remove(once)
+            G.keepHooks()
+        end
+        Events.OnTick.Add(once)
+    end
 end
 
 --- Could a dropped controller stand on this neighbour of the dropper?

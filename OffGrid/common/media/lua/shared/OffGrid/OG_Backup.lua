@@ -48,6 +48,10 @@ local floor = math.floor
 K.TANK = 10
 -- The barrels top the tank up while it holds less than this.
 K.TOPUP_BELOW = 9
+-- The most fuel any unit may be read as holding, for numbers that come out
+-- of save data: a linked Onan's belly tank and propane (OG_Onan) hold far
+-- more than a vanilla generator's 10 L.
+K.MAX_TANK = 500
 -- Units one controller runs, and barrels one unit draws from.
 K.MAX_UNITS = 4
 K.MAX_FEEDS = 8
@@ -121,6 +125,25 @@ K.BRAND_OF_ITEM = {
     ["Base.Generator_Yellow"] = "premium",
 }
 
+--- A unit's brand: one of the four above, or the Onan 12.5JC while Carver's
+--  mod is loaded (OG_Onan, ON.brand). The Onan is LINKED (`linked`): the
+--  unit is his generator, stamped, and keeps its own fuel, condition and
+--  sounds (`sounds`); it burns `fuelFactor` of what a vanilla generator
+--  burns. Nil for anything else.
+function K.brand(tier)
+    local b = K.BRANDS[tier]
+    if b then return b end
+    local ON = OffGrid.Onan
+    if ON and ON.brand then return ON.brand(tier) end
+    return nil
+end
+
+--- Is this unit a linked Onan, kept on its own tanks?
+function K.linked(unit)
+    local ON = OffGrid.Onan
+    return ON ~= nil and ON.isUnit ~= nil and ON.isUnit(unit) == true
+end
+
 --- The sprites a vanilla generator stands on (the appliances_misc_01
 --  tileset in newtiledefinitions), with the brand and the facing each shows.
 --  Three groups run E, S, W, N. The Blue one does not: 12 is S, 13 E, 14 N,
@@ -188,9 +211,16 @@ end
 --  item that claims a vanilla sprite. The generatorFullType the engine
 --  stamps on a generator built from an item (setInfoFromItem) must not name
 --  another item either. An Off-Grid controller wears the mod's own sprite
---  and never matches.
+--  and never matches. An Onan 12.5JC (OG_Onan) is the Onan's tier, facing
+--  as its tile does.
 function K.brandOfGenerator(gen)
     if not gen or not instanceof(gen, "IsoGenerator") then return nil end
+    local ON = OffGrid.Onan
+    if ON and ON.isOnan and ON.isOnan(gen) then
+        local facing = ON.facing(gen)
+        if facing then return ON.TIER, facing end
+        return nil
+    end
     local spr = try(gen, "getSprite")
     local name = spr and try(spr, "getName")
     local v = type(name) == "string" and K.VANILLA_SPRITES[name] or nil
@@ -483,14 +513,38 @@ function K.feedClaim(barrel)
     return nil
 end
 
+--- The fuel a unit holds itself, in litres: its tank, or for a linked Onan
+--  his propane and belly tank as they stand now.
+function K.unitFuel(unit)
+    if K.linked(unit) then return OffGrid.Onan.fuel(unit) end
+    local tank = numOr(unitData(unit).fuel, 0)
+    if tank < 0 then tank = 0 end
+    return tank
+end
+
+--- What a unit's own tank holds when full, in litres.
+function K.tankSize(unit)
+    if K.linked(unit) then return OffGrid.Onan.capacity(unit) end
+    return K.TANK
+end
+
+--- A unit's condition, 0..100: a linked Onan's is his generator's own.
+function K.unitCondition(unit)
+    if K.linked(unit) then
+        local c = OffGrid.Onan.condition(unit)
+        if c then return c end
+    end
+    return numOr(unitData(unit).condition, 100)
+end
+
 --- A unit's tank, and the pure petrol its loaded feeds within a hose hold,
 --  in litres. A feed that is not loaded, holds nothing or is mixed adds
---  nothing.
+--  nothing. A linked Onan has no feeds.
 function K.totalFuel(unit)
     local d = unitData(unit)
-    local tank = numOr(d.fuel, 0)
-    if tank < 0 then tank = 0 end
+    local tank = K.unitFuel(unit)
     local feedL = 0
+    if K.linked(unit) then return tank, feedL end
     local sq = try(unit, "getSquare")
     if not sq then return tank, feedL end
     local ux, uy, uz = sq:getX(), sq:getY(), sq:getZ()
@@ -652,12 +706,16 @@ end
 --  indoors, server) is judged by its cause, not by the stored word.
 function K.startRefusal(unit)
     if not K.allowed() then return "Tooltip_OffGrid_BkServerOff" end
+    -- A linked Onan left behind when Carver's mod was taken off the save has
+    -- no brand to run on (OG_Onan).
+    local info = P.describe(unit)
+    if info and not K.brand(info.tier) then return "Tooltip_OffGrid_BkModded" end
     if not K.linkedController(unit) then return "Tooltip_OffGrid_BkNoLink" end
     local sq = try(unit, "getSquare")
     if sq and try(sq, "haveFire") == true then return "Tooltip_OffGrid_BkFireOut" end
     if enclosed(sq) then return "Tooltip_OffGrid_BkMoveOut" end
     local d = unitData(unit)
-    if d.fault == "fault" or d.fault == "fire" or numOr(d.condition, 100) <= 0 then
+    if d.fault == "fault" or d.fault == "fire" or K.unitCondition(unit) <= 0 then
         return "Tooltip_OffGrid_BkRepairFirst"
     end
     local tank, feedL = K.totalFuel(unit)
@@ -694,8 +752,9 @@ end
 
 --- Refuelling from `petrol`, the container the player would pour from (nil
 --  when they carry none). Allowed while the unit runs, as a vanilla
---  generator is.
+--  generator is. A linked Onan is filled from its own Generator menu.
 function K.refuelRefusal(character, unit, petrol)
+    if K.linked(unit) then return OffGrid.Onan.REFUSAL_FUEL end
     if not K.predicatePetrol(petrol) then return "Tooltip_OffGrid_BkNeedPetrol" end
     if numOr(unitData(unit).fuel, 0) >= K.TANK - 0.01 then
         return "Tooltip_OffGrid_BkTankFull"
@@ -718,7 +777,7 @@ function K.repairRefusal(character, unit, scrap)
     if not K.predicateScrap(scrap) then return "Tooltip_OffGrid_BkRepairNeedScrap" end
     local d = unitData(unit)
     if d.run == "on" then return "Tooltip_OffGrid_BkStopFirst" end
-    if numOr(d.condition, 100) >= 100 and d.fault ~= "fault" and d.fault ~= "fire" then
+    if K.unitCondition(unit) >= 100 and d.fault ~= "fault" and d.fault ~= "fire" then
         return "Tooltip_OffGrid_BkRepairNone"
     end
     return nil
@@ -726,7 +785,9 @@ end
 
 --- Connecting `barrel` to a unit with a Rubber Hose from the player's
 --  inventory. One barrel feeds one unit, and a gas-station pump never does.
+--  A linked Onan has its own belly tank and no barrels.
 function K.feedRefusal(character, unit, barrel)
+    if K.linked(unit) then return OffGrid.Onan.REFUSAL_FUEL end
     local inv = try(character, "getInventory")
     if try(inv, "containsTypeRecurse", K.HOSE) ~= true then
         return "Tooltip_OffGrid_BkNeedHose"
@@ -825,6 +886,8 @@ function K.toBackup(gen, character)
     local refusal = K.convertRefusal(character, gen)
     if refusal then return nil, refusal end
     local tier, facing = K.brandOfGenerator(gen)
+    local ON = OffGrid.Onan
+    if ON and tier == ON.TIER then return K.linkOnan(gen, facing, character) end
     local sq = P.try(gen, "getSquare")
     local at = P.try(gen, "getObjectIndex")
     local name = tier and P.sprite("backup", "ground", tier, "off", facing)
@@ -860,6 +923,46 @@ function K.toBackup(gen, character)
     return o
 end
 
+--- Convert to Off-Grid backup for an Onan 12.5JC (OG_Onan): the generator
+--  stays and is stamped, since Carver's server deletes its engine half once
+--  the generator leaves. The same allowlist K.toBackup writes, with his fuel
+--  and condition copied in (they stay his: OG_BackupSys takes them from the
+--  generator every tick). Pushed in one packet with his own state. Returns
+--  the generator.
+function K.linkOnan(gen, facing, character)
+    local ON = OffGrid.Onan
+    local sq = P.try(gen, "getSquare")
+    if not (ON and sq) then return nil end
+    local condition = M.clamp(tonumber(ON.condition(gen)) or 100, 0, 100)
+    local now = OffGrid.Env and OffGrid.Env.worldHours and OffGrid.Env.worldHours() or 0
+    gen:getModData().offgrid = { kind = "backup", mount = "ground", tier = ON.TIER,
+                                 facing = facing, state = "off", fuel = ON.fuel(gen),
+                                 condition = condition, auto = true, run = "off",
+                                 fault = (condition <= 0) and "fault" or nil, at = now }
+    if OffGrid.Place and OffGrid.Place.stamp then OffGrid.Place.stamp(gen, character) end
+    gen:transmitModData()
+    if OffGrid.System and OffGrid.System.register then OffGrid.System.register(gen) end
+    local BS = OffGrid.BackupSound
+    if BS and BS.found then BS.found(gen) end
+    return gen
+end
+
+--- Convert to normal generator for a linked Onan: the stamp comes off, and
+--  it is his generator as before, its fuel and condition already its own.
+--  Asked after K.restoreRefusal, as for any unit, and let out of any graph
+--  that still names it, as K.toGenerator does with a swapped unit.
+local function unlinkOnan(unit)
+    local md = unit:getModData()
+    local sq = P.try(unit, "getSquare")
+    local d = md.offgrid
+    if sq and type(d) == "table" and OffGrid.System and OffGrid.System.unplug then
+        OffGrid.System.unplug(M.nodeKey(sq:getX(), sq:getY(), sq:getZ(), "backup"), d.sys)
+    end
+    md.offgrid = nil
+    unit:transmitModData()
+    return unit
+end
+
 --- Convert to normal generator: a backup unit becomes a generator of its brand.
 --
 --  Refused as K.restoreRefusal says (the server's pickup lock, running, still
@@ -882,6 +985,7 @@ function K.toGenerator(unit, character)
     if not info or info.kind ~= "backup" then return nil end
     local refusal = K.restoreRefusal(character, unit)
     if refusal then return nil, refusal end
+    if K.linked(unit) then return unlinkOnan(unit) end
     local brand = K.BRANDS[info.tier]
     local sq = P.try(unit, "getSquare")
     local at = P.try(unit, "getObjectIndex")

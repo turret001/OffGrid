@@ -9,7 +9,7 @@ the batteries run low.
 - **Steam Workshop:** https://steamcommunity.com/sharedfiles/filedetails/?id=3789425624
 - **How it works:** see the [wiki](https://github.com/turret001/OffGrid/wiki)
 - **FAQ:** [short answers to common questions](https://github.com/turret001/OffGrid/wiki/FAQ)
-- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 3.1.1 · **Game:** Build 42
+- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 3.1.2 · **Game:** Build 42
 
 ![Build your first rig](images/01-build-your-first-rig.png)
 
@@ -43,6 +43,12 @@ an issue here.
 - **Project Viewpoint:** every part shows in its first-person 3D view and works from its interaction menu. Power
   coverage and choosing buildings work in the top-down view only. The 3D models are generated from the same shapes
   as the tiles.
+- **Onan 12.5JC GenSet:** its generator can be converted into a backup and cabled to a controller. It keeps its own
+  propane and belly tank, and you fill it from its own menu.
+- **Place Anywhere:** works whatever the mod order. Off-Grid's own placing rules still apply to its parts.
+- **GridInventory:** the battery panel comes to the front when you open the inventory.
+- **Knox Power:** a charge controller cannot be connected to a Knox panel. Wire buildings from the controller instead.
+  Knox's switches still apply to houses Off-Grid powers.
 
 ## Credits
 

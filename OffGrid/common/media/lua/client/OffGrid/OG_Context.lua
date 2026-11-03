@@ -445,10 +445,12 @@ local function statusText(obj, part)
             feedL = tonumber(n) or 0
         end
         local word = k.unitState(d, masterOn, feedL)
-        local fuel = M.clamp((d.fuel or 0) / k.TANK, 0, 1)
+        -- its own tank: a linked Onan's propane and belly tank (OG_Onan)
+        local size = k.tankSize(obj)
+        local fuel = size > 0 and M.clamp(k.unitFuel(obj) / size, 0, 1) or 0
         local line = P.txt("IGUI_OffGrid_BkStatus",
                            getText(BK_STATE_TEXT[word] or "IGUI_OffGrid_BkStOff"),
-                           math.floor(fuel * 100 + 0.5), math.floor(d.condition or 100))
+                           math.floor(fuel * 100 + 0.5), math.floor(k.unitCondition(obj)))
         if loose then
             return getText("IGUI_OffGrid_NotWired") .. "   " .. line
         end
@@ -555,12 +557,24 @@ function C.onFill(playerNum, context, worldobjects, test)
         local p = P.partOf(o)
         if p then target, part = o, p break end
     end
+    -- A click on an Onan's engine half means its generator (OG_Onan), as
+    -- Carver's own menu takes it: the linked unit, or the Onan to convert.
+    local ON = OffGrid.Onan
+    local onan = nil
+    if not target and ON and ON.generatorOf then
+        for _, o in ipairs(worldobjects) do
+            onan = ON.generatorOf(o)
+            if onan then break end
+        end
+        if onan and P.partOf(onan) == "backup" then target, part = onan, "backup" end
+    end
     -- A native generator vanilla built its menu for gets Convert to Off-Grid
     -- backup: under an Off-Grid option of its own when no part was clicked,
     -- or in the clicked part's submenu when one was. A backup already on the
     -- generator's square is what the loop above finds first, and "There is
     -- already a backup generator here" must still be shown, not hidden.
     local gen = nativeGenerator()
+    if not gen and not target and onan and K() then gen = onan end
     -- A normal generator set down on a backup's square (Can, 2026-09-29:
     -- "Fix it"). A right-click there hits the generator, the one object the
     -- pick hands over (ISObjectClickHandler.doRClick), and the backup under
@@ -1408,9 +1422,13 @@ function C.backupMenu(menu, worldobjects, target, playerObj)
     -- list behind it, since no barrel on it could be used.
     local hose = inv and inv:getFirstTypeRecurse(k.HOSE)
     local feed = C.icon(menu:addOption(getText("ContextMenu_OffGrid_BkFeed")), menu, "bkFeed")
-    local found = lock and {} or barrelsNear(target, k)
+    -- a linked Onan fills from its own Generator menu (OG_Onan): no barrels
+    local linked = k.linked(target)
+    local found = (lock or linked) and {} or barrelsNear(target, k)
     if lock then
         greyed(feed, lock)
+    elseif linked then
+        greyed(feed, k.feedRefusal(playerObj, target, nil))
     elseif #found == 0 then
         greyed(feed, "Tooltip_OffGrid_BkNoBarrel")
     else

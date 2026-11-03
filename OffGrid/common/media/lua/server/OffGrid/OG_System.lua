@@ -1759,11 +1759,12 @@ end
 
 --- Spend clipped energy on recovering flooded banks.
 --
---  Funded ONLY by surplus that had nowhere else to go, so equalising never
+--  Funded by surplus that had nowhere else to go, so equalising never
 --  competes with the load: in July the array clips several kWh a day and this
 --  is somewhere for it to go, and in January there is no surplus and no
---  recovery. Sealed cells are skipped, because an equalisation charge produces
---  gas they cannot vent.
+--  recovery, unless a backup generator is running: it pays what the clip
+--  leaves (runEqualise). Sealed cells are skipped, because an equalisation
+--  charge produces gas they cannot vent.
 --
 --  Returns the Wh actually spent, so the caller can report it.
 local function equalise(rec, env, surplusWh, dt)
@@ -1800,6 +1801,48 @@ local function equalise(rec, env, surplusWh, dt)
         end
     end
     return spent
+end
+
+--- What an equalisation charge could take this step, Wh: every rack
+--  equalise() would treat, at its full step. A running backup is offered
+--  its share of it (sys.equaliseWh, M.step); equalise() spends what the cells
+--  take, and runEqualise gives back what they did not.
+local function equaliseWant(rec, dt)
+    if (dt or 0) <= 0 then return 0 end
+    local bankScale = P.bankScale()
+    local want = 0
+    for i = 1, #rec.banks do
+        local info, d = equalisable(rec.banks[i], EQUALISE_TO)
+        if info then
+            local nameplate = (d.cells or 0) * M.bankSpec(info.tier).wh * bankScale
+            local _, wh = M.equaliseStep(P.bankHealth(d), 1e18, nameplate, dt)
+            want = want + wh
+        end
+    end
+    return want
+end
+
+--- Give the backup generators back what an equalisation charge was offered
+--  and did not take: its Wh and its petrol, on each unit's own share
+--  (M.step's eqWh, eqFuel), before OG_BackupSys settles the tanks.
+local function giveBackEqualise(tel, unused, dt)
+    local offered = tel.backupEqWh or 0
+    if offered <= 0 or unused <= 1e-12 then return end
+    local frac = math.min(1, unused / offered)
+    local list = tel.backupUnits or {}
+    for i = 1, #list do
+        local e = list[i]
+        local eqWh, eqFuel = e.eqWh or 0, e.eqFuel or 0
+        if eqWh > 0 then
+            e.wh = math.max(0, (e.wh or 0) - eqWh * frac)
+            e.fuel = math.max(0, (e.fuel or 0) - eqFuel * frac)
+            e.eqWh, e.eqFuel = eqWh * (1 - frac), eqFuel * (1 - frac)
+        end
+    end
+    local gone = offered * frac
+    tel.backupEqWh = offered - gone
+    tel.backupWh = math.max(0, (tel.backupWh or 0) - gone)
+    tel.backupWatts = dt > 0 and tel.backupWh / dt or 0
 end
 
 --- Is a generator we do not own running inside this building?
@@ -2056,18 +2099,27 @@ end
 --  Equalisation eats the clip before it is recorded as waste, because that is
 --  exactly what it is for: the surplus stops being thrown away and starts
 --  buying back the one quantity nothing else can. So this runs before the
---  day's clipping is added up, and takes what it spent off tel.wasted.
+--  day's clipping is added up, and takes what it spent off tel.wasted. A
+--  running backup generator pays what the clip leaves (Can, 2026-11-03),
+--  from the share M.step offered it (tel.backupEqWh); what the cells did not
+--  take goes back to its tank before OG_BackupSys settles it.
 local function runEqualise(rec, d, env, tel, dt, sliceToday)
     local recovered = 0
+    local sun = tel.wasted or 0
+    local offered = tel.backupEqWh or 0
+    local fromGen = 0
     if d.equalise then
-        recovered = equalise(rec, env, tel.wasted or 0, dt)
-        tel.wasted = math.max(0, (tel.wasted or 0) - recovered)
+        recovered = equalise(rec, env, sun + offered, dt)
+        local fromSun = math.min(recovered, sun)
+        tel.wasted = math.max(0, sun - fromSun)
+        fromGen = math.min(offered, recovered - fromSun)
         -- The recovery itself always applies; the "today" READOUT only
         -- counts today's slices (see sliceToday).
         if sliceToday then
             d.equaliseToday = (d.equaliseToday or 0) + recovered
         end
     end
+    giveBackEqualise(tel, offered - fromGen, dt)
     d.recovered = recovered
 
     -- Whether the option is worth offering at all: at least one flooded bank
@@ -2361,6 +2413,13 @@ function S.updateController(rec, dt, hoursAgo, wet)
     if replay and env.snowing then
         env.snowing = false
         env.noWash = true
+    end
+
+    -- An equalisation charge a running backup can pay for: what the cells
+    -- could take this step. The model offers it from what the running set
+    -- has left once the clip has paid, and runEqualise spends it.
+    if d.equalise and bk and bk.running > 0 then
+        sys.equaliseWh = equaliseWant(rec, dt)
     end
 
     local healthBefore = bank.health or 1
@@ -2701,6 +2760,12 @@ local function registerSprites()
                 MapObjects.OnNewWithSprite(name, onLoadPart, PRIORITY)
             end
         end
+    end
+    -- A linked Onan wears its own mod's tiles (OG_Onan); S.register passes
+    -- over one that is not linked.
+    local ON = OffGrid.Onan
+    for i = 1, #((ON and ON.SPRITES) or {}) do
+        MapObjects.OnLoadWithSprite(ON.SPRITES[i], onLoadPart, PRIORITY)
     end
 end
 

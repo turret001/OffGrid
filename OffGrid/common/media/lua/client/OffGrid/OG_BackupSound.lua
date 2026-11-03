@@ -30,6 +30,11 @@
      bumps and pushes in the tick the unit backfires. Nothing here writes to
      the world: the sounds and lights are this machine's own.
 
+     A linked Onan 12.5JC (OG_Onan) keeps Carver's tile, so its state rides
+     its ModData, and it plays his recordings: the start alone, the loop
+     joining it 1.65 s in, the stop. An Onan's square stays noted while it is
+     not linked, since a multiplayer client hears of no event when it is.
+
      LOCAL SOUNDS ONLY: playSoundImpl, never playSound. On a multiplayer
      client playSound also sends PlayWorldSound (FMODSoundEmitter.java:
      389-401), and the server passes that on to every other client within 70
@@ -98,9 +103,10 @@ N.LIGHT_G = 0.3
 N.LIGHT_B = 0.06
 N.LIGHT_RADIUS = 1
 
-N.units = {}        -- node key -> { x, y, z, tier, prefix, state, bf, em, loop, light }
+N.units = {}        -- node key -> { x, y, z, tier, snd, state, bf, em, loop, light, joinAt }
 N.candidates = {}   -- node key -> { x, y, z }: noted, not heard yet
 N.lookAt = nil      -- getTimestampMs() when the units were last looked at
+N.waiting = 0       -- units whose loop waits to join their start-up (joinAt)
 
 -- Every backup sprite, by name, with the brand and state it shows. One hash
 -- lookup per object: P.describe would also read the ModData of every object
@@ -115,7 +121,13 @@ for _, tier in ipairs(P.TIERS.backup or {}) do
     end
 end
 
---- The backup standing on a square and what its sprite shows, or nil.
+-- An Onan 12.5JC's generator tiles (OG_Onan). A linked Onan keeps its own
+-- tile, so its state rides its ModData instead (P.setState), pushed with it.
+local ONAN = {}
+for _, name in ipairs((OffGrid.Onan and OffGrid.Onan.SPRITES) or {}) do ONAN[name] = true end
+
+--- The backup standing on a square and what it shows, or nil: the sprite, or
+--  a linked Onan's ModData.
 local function backupOn(sq)
     local objs = sq:getObjects()
     for i = 0, objs:size() - 1 do
@@ -124,8 +136,37 @@ local function backupOn(sq)
         local name = spr and spr:getName()
         local b = name and SPRITES[name]
         if b then return o, b end
+        if name and ONAN[name] and K.linked(o) then
+            local d = o:getModData().offgrid
+            return o, { tier = d.tier, state = d.state == "on" and "on" or "off" }
+        end
     end
     return nil
+end
+
+--- Does an Onan stand on this square, linked or not? One that is not may be
+--  linked later, which no event tells a multiplayer client about, so its
+--  square stays noted while it stands there.
+local function onanOn(sq)
+    local ON = OffGrid.Onan
+    if not (ON and sq) then return false end
+    local objs = sq:getObjects()
+    for i = 0, objs:size() - 1 do
+        local o = objs:get(i)
+        local spr = o and o:getSprite()
+        local name = spr and spr:getName()
+        if name and ONAN[name] and ON.isOnan(o) then return true end
+    end
+    return false
+end
+
+--- A brand's sounds: its own (the Onan's recordings), or its tiles'
+--  GeneratorSound prefix with vanilla's four suffixes.
+local function soundsOf(brand)
+    if brand.sounds then return brand.sounds end
+    local p = brand.sound or "Generator"
+    return { loop = p .. "Loop", start = p .. "Starting", stop = p .. "Stopping",
+             backfire = p .. "Backfire" }
 end
 
 --- The backfire counter the authority bumps, 0 before the first.
@@ -150,29 +191,44 @@ local function emitterAt(u)
 end
 
 --- Stop the unit's loop and let its emitter go. The one place an emitter is
---  let go, so none is ever dropped with its loop still playing.
+--  let go, so none is ever dropped with its loop still playing. A loop still
+--  waiting to join a start-up (N.joinLoops) is called off too.
 local function silence(u)
     if playing(u) then u.em:stopSound(u.loop) end
     u.em, u.loop = nil, nil
+    if u.joinAt then
+        u.joinAt = nil
+        N.waiting = math.max(0, N.waiting - 1)
+    end
 end
 
 --- Start the unit's loop on an emitter of its own: after the start-up when
 --  it has just been switched on, alone when it only came into earshot or
---  its loop fell silent.
+--  its loop fell silent. A start-up that runs itself up to speed (the Onan's
+--  recording, `runAt`) is played alone, and the loop joins it `runAt`
+--  seconds in (N.joinLoops), as Carver's own player does; vanilla's events
+--  start together.
 local function listen(u, obj, announce)
     silence(u)
     local em = emitterAt(u)
     if not em then return end
-    if announce then em:playSoundImpl(u.prefix .. "Starting", obj) end
-    local id = em:playSoundImpl(u.prefix .. "Loop", obj)
+    if announce then
+        em:playSoundImpl(u.snd.start, obj)
+        if u.snd.runAt and getTimestampMs then
+            u.joinAt = getTimestampMs() + u.snd.runAt * 1000
+            N.waiting = N.waiting + 1
+            return
+        end
+    end
+    local id = em:playSoundImpl(u.snd.loop, obj)
     if id and id ~= 0 then u.em, u.loop = em, id end
 end
 
---- A sound that plays once (Stopping, Backfire): on the emitter the loop is
+--- A sound that plays once (stop, backfire): on the emitter the loop is
 --  playing on, or on a fresh one, which the pool takes back when it ends.
-local function once(u, obj, suffix)
+local function once(u, obj, which)
     local em = playing(u) and u.em or emitterAt(u)
-    if em then em:playSoundImpl(u.prefix .. suffix, obj) end
+    if em then em:playSoundImpl(u.snd[which], obj) end
 end
 
 --- The unit's run light on. Made once, on its square; then asked of the cell
@@ -244,10 +300,10 @@ function N.visit(x, y, z, obj, b)
     end
     local bf = backfires(obj)
     if not u then
-        local brand = K.BRANDS[b.tier]
+        local brand = K.brand(b.tier)
         if not brand then return end
         u = { x = floor(x), y = floor(y), z = floor(z), tier = b.tier,
-              prefix = brand.sound, state = b.state, bf = bf }
+              snd = soundsOf(brand), state = b.state, bf = bf }
         N.units[key] = u
         -- First heard: a running unit gets its loop and no start-up, since
         -- nobody here heard it start, and its light.
@@ -260,21 +316,37 @@ function N.visit(x, y, z, obj, b)
     if b.state == "on" then
         if u.state ~= "on" then
             listen(u, obj, true)
-        elseif not playing(u) then
+        elseif not playing(u) and not u.joinAt then
             listen(u, obj, false)
         end
         lightOn(u)
     else
         if u.state == "on" then
             silence(u)
-            once(u, obj, "Stopping")
+            once(u, obj, "stop")
         end
         lightOff(u)
     end
     u.state = b.state
     if bf ~= u.bf then
         u.bf = bf
-        once(u, obj, "Backfire")
+        once(u, obj, "backfire")
+    end
+end
+
+--- Start the loops whose start-up has run long enough (listen's `joinAt`),
+--  every frame while one waits, so the loop comes in where the recording
+--  expects it rather than at the next look a second later. A unit stopped,
+--  gone or out of earshot meanwhile was silenced and waits no more.
+function N.joinLoops(now)
+    for _, u in pairs(N.units) do
+        if u.joinAt and now >= u.joinAt then
+            u.joinAt = nil
+            N.waiting = math.max(0, N.waiting - 1)
+            local sq = getSquare(u.x, u.y, u.z)
+            local obj = sq and backupOn(sq)
+            if obj and u.state == "on" then listen(u, obj, false) end
+        end
     end
 end
 
@@ -342,7 +414,12 @@ function N.look(pl)
             N.visit(u.x, u.y, u.z, obj, b)
         end
     end
-    for i = 1, #gone do N.forget(gone[i]) end
+    for i = 1, #gone do
+        local u = N.units[gone[i]]
+        N.forget(gone[i])
+        -- an Onan converted back may be linked again
+        if onanOn(getSquare(u.x, u.y, u.z)) then N.note(u.x, u.y, u.z) end
+    end
     for i = 1, #away do
         local u = N.units[away[i]]
         N.forget(away[i])
@@ -358,7 +435,12 @@ function N.look(pl)
         local sq = getSquare(c.x, c.y, c.z)
         local obj, b = nil, nil
         if sq then obj, b = backupOn(sq) end
-        if obj then N.visit(c.x, c.y, c.z, obj, b) end
+        if obj then
+            N.visit(c.x, c.y, c.z, obj, b)
+        elseif onanOn(sq) then
+            -- an Onan nobody has linked yet stays noted
+            N.candidates[near[i]] = c
+        end
     end
 end
 
@@ -370,6 +452,7 @@ function N.onTick()
         return
     end
     local now = getTimestampMs()
+    if N.waiting > 0 then N.joinLoops(now) end
     if not N.lookAt or now - N.lookAt >= N.EVERY_MS then
         N.lookAt = now
         N.look(pl)
@@ -382,23 +465,27 @@ end
 --  event (IngameState.java:761), and one noted in the last world is dropped
 --  by the first look that finds no backup on its square.
 function N.reset()
-    N.units, N.lookAt = {}, nil
+    N.units, N.lookAt, N.waiting = {}, nil, 0
 end
 
---- An object added to a loaded square on a multiplayer client.
+--- An object added to a loaded square on a multiplayer client: a backup, or
+--  an Onan that may be linked.
 local function onObjectAdded(obj)
     local spr = obj and obj:getSprite()
     local name = spr and spr:getName()
-    if name and SPRITES[name] then N.found(obj) end
+    if name and (SPRITES[name] or ONAN[name]) then N.found(obj) end
 end
 
---- Every backup sprite, so a unit streaming in with its chunk is noted. At
---  file load, as OG_System does: the login area's chunks stream in during
---  the loading screen, before OnGameStart. Registering again replaces the
---  same callback, so it is idempotent.
+--- Every backup sprite, and the Onan's, so a unit streaming in with its
+--  chunk is noted. At file load, as OG_System does: the login area's chunks
+--  stream in during the loading screen, before OnGameStart. Registering again
+--  replaces the same callback, so it is idempotent.
 local function registerSprites()
     if not (MapObjects and MapObjects.OnLoadWithSprite) then return end
     for name in pairs(SPRITES) do
+        MapObjects.OnLoadWithSprite(name, N.found, N.PRIORITY)
+    end
+    for name in pairs(ONAN) do
         MapObjects.OnLoadWithSprite(name, N.found, N.PRIORITY)
     end
 end

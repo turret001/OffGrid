@@ -280,11 +280,15 @@ function P.allItems()
     return out
 end
 
---- The item a placed object corresponds to, or nil.
+--- The item a placed object corresponds to, or nil. A linked Onan (OG_Onan)
+--  is Carver's own item, for its name.
 function P.itemFor(kind, mount, tier)
     local byMount = P.ITEM[kind]
     local byTier = byMount and byMount[mount]
-    return byTier and byTier[tier] or nil
+    local item = byTier and byTier[tier] or nil
+    local ON = OffGrid.Onan
+    if not item and kind == "backup" and ON and tier == ON.TIER then return ON.ITEM end
+    return item
 end
 
 -------------------------------------------------------------------- sprites
@@ -655,8 +659,19 @@ function P.setState(obj, state)
     local info = P.describe(obj)
     if not info then return false end
     local want = P.sprite(info.kind, info.mount, info.tier, state, info.facing)
-    if not want then return false end
     local cur = obj:getSprite() and obj:getSprite():getName()
+    if not want then
+        -- A backup wearing another mod's tile (a linked Onan, OG_Onan) has no
+        -- sprite of ours to show its state: it rides its ModData, which the
+        -- caller pushes with the unit. Any other part asked for a state it has
+        -- no sprite for is left alone, as before.
+        if info.kind ~= "backup" or P.spriteInfo(cur) then return false end
+        local md = obj.getModData and obj:getModData()
+        local d = md and md.offgrid
+        if type(d) ~= "table" or d.state == state then return false end
+        d.state = state
+        return true
+    end
     if cur == want then return false end
     -- BOTH calls, in this order, and neither is redundant.
     --

@@ -412,6 +412,8 @@ function OG_BackupRepair:complete()
         if not (sq and sq:haveFire()) then d.fault = nil end
     end
     d.at = worldHours()
+    -- a linked Onan's condition is his generator's own (OG_Onan)
+    if K.linked(self.object) then OffGrid.Onan.push(self.object, d) end
     publish(self.object, d)
     addXp(self.character, Perks.Electricity, 5)
     return true

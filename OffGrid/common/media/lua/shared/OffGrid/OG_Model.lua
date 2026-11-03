@@ -1259,32 +1259,53 @@ function M.solarWatts(sys, env)
     return watts * invEff * harvest, irradiance
 end
 
---- The running set's two passes in M.step, in the order the energy goes:
---  first the part of `loadWh` the sun leaves, at the load's price (pL L a
---  Wh, each unit's tank paying its idle first), then the room the sun left
+--- What each unit has left after a pass: the rest of its rating over dt,
+--  and the rest of its tank after `got`'s Wh at `perWh` (and its idle, when
+--  `ui` is given: the first pass pays it).
+local function backupRest(units, got, dt, perWh, idle)
+    local rest = {}
+    for i = 1, #units do
+        local u = units[i]
+        local ui = 0
+        if idle ~= nil then ui = u.idle ~= nil and max(0, u.idle) or idle end
+        rest[i] = {
+            key = u.key,
+            rating = dt > 0 and max(0, max(0, u.rating or 0) * dt - got[i].wh) / dt or 0,
+            tank = max(0, (u.tank or 0) - ui * dt - got[i].wh * perWh),
+        }
+    end
+    return rest
+end
+
+--- The running set's passes in M.step, in the order the energy goes: first
+--  the part of `loadWh` the sun leaves, at the load's price (pL L a Wh, each
+--  unit's tank paying its idle first); then, when `eqWh` is asked, an
+--  equalisation charge, at charging's price (pC); then the room the sun left
 --  in the bank, from what each unit has left of its rating and its tank, at
---  charging's price (pC). Returns both backupSupply results, and what the
---  set could give asked for this load: all the load pass gave, and all the
---  charge pass could.
+--  pC too. Returns the load and charge results, what the set could give
+--  asked for this load (all the load pass gave, and all the charge pass
+--  could), and the equalisation's result (nil when none was asked).
+--
+--  The equalisation comes before the bank (Can, 2026-11-03: running
+--  generators, "auto or not", pay for it): after it, a unit charging an
+--  emptied rack at its whole rating gave it nothing until the rack was full,
+--  and Auto stops a unit short of full. Its step is capped (M.EQUALISE_RATE),
+--  so it takes a few hundred watts of a unit's rating while it lasts.
 --
 --  One blended price for both (final review, 2026-09-28) capped a nearly
 --  empty tank at the blend, but the energy it gave went to the load first:
 --  a 0.005 L tank was billed 0.0104 L, and half of what it gave was free.
-local function backupPasses(units, loadWh, S, toFill, dt, idle, pL, pC)
+local function backupPasses(units, loadWh, S, toFill, dt, idle, pL, pC, eqWh)
     local one = M.backupSupply(units, max(0, loadWh - S), dt, { idle = idle, perWh = pL })
-    local rest = {}
-    for i = 1, #units do
-        local u, got = units[i], one[i]
-        local ui = u.idle ~= nil and max(0, u.idle) or idle
-        rest[i] = {
-            key = u.key,
-            rating = dt > 0 and max(0, max(0, u.rating or 0) * dt - got.wh) / dt or 0,
-            tank = max(0, (u.tank or 0) - ui * dt - got.wh * pL),
-        }
+    local rest = backupRest(units, one, dt, pL, idle)
+    local three = nil
+    if (eqWh or 0) > 0 then
+        three = M.backupSupply(rest, eqWh, dt, { idle = 0, perWh = pC })
+        rest = backupRest(rest, three, dt, pC, nil)
     end
     local two = M.backupSupply(rest, max(0, toFill - max(0, S - loadWh)), dt,
                                { idle = 0, perWh = pC })
-    return one, two, one.total + two.cap
+    return one, two, one.total + two.cap, three
 end
 
 --- Advance a whole system by `dtHours`.
@@ -1306,6 +1327,9 @@ end
 --                        -- generator was on); nil for a catch-up slice,
 --                        -- which keeps no record of it and bills as powered
 --    inverterEff, harvest -- from the controller's grade
+--    equaliseWh = nil or Wh an equalisation charge could take this step
+--                        -- (OG_System); the clip pays first, a running
+--                        -- backup the rest
 --    backup = nil or {   -- the backup generators RUNNING this step (OG_BackupSys)
 --      units = { { key, rating (W), tank (L) }, ... },
 --      gfc, use,         -- Generator Fuel Consumption, Backup generator fuel use
@@ -1326,7 +1350,8 @@ end
 --  t.backupCap (B, what the running set could give this step, Wh),
 --  t.backupWh and t.backupWatts (what it gave), t.backupLoadWh and
 --  t.backupChargeWh (the part that served the load and the part that
---  charged), t.bypass, and t.backupUnits = { { key, wh, fuel (L) }, ... }.
+--  charged), t.backupEqWh (the part offered to an equalisation charge),
+--  t.bypass, and t.backupUnits = { { key, wh, fuel (L), eqWh, eqFuel }, ... }.
 --  The sun goes first; the generators fill the rest of the load, then the
 --  room the sun left in the bank, and no more. While the sun and B can
 --  carry everything switched on (the supply bypass), a shed closes at once
@@ -1339,7 +1364,8 @@ function M.step(sys, dtHours, env)
         lvdOpened = false, lvdClosed = false, reconnectSoc = 0, socIn = 0,
         floorSoc = 0,
         backupCap = 0, backupWh = 0, backupWatts = 0,
-        backupLoadWh = 0, backupChargeWh = 0, bypass = false, backupUnits = {},
+        backupLoadWh = 0, backupChargeWh = 0, backupEqWh = 0, bypass = false,
+        backupUnits = {},
     }
     dtHours = max(0, dtHours or 0)
     local bank = sys.bank or { cells = 0, charge = 0, health = 1 }
@@ -1454,11 +1480,25 @@ function M.step(sys, dtHours, env)
     -- leaves, then the room in the bank the sun leaves, never more than
     -- their tanks pay for. So U never lands in t.wasted, and while the
     -- bypass holds the load never reaches the bank.
-    local one, two, U = nil, nil, 0
+    --
+    -- An equalisation charge (Can, 2026-11-03: "running backup generators
+    -- (auto or not.) should pay for the equalisation charge"): the sun's clip
+    -- pays first, and what it leaves (eqWant) comes from the running set
+    -- after the load and before the bank (backupPasses), at charging's price.
+    -- It never reaches the bank, so it moves no charge here: OG_System
+    -- spends it on the cells' health and gives back what they did not take.
+    -- The clip is worked out before the generators: it is what the sun has
+    -- past the load and the bank's room, and the generators never add to it.
+    local one, two, three, U = nil, nil, nil, 0
     if #units > 0 then
-        one, two = backupPasses(units, t.consumed, S, toFill, dtHours, idle, pL, pC)
+        local clip = max(0, S - t.consumed - toFill)
+        local eqWant = max(0, (sys.equaliseWh or 0) - clip)
+        local _
+        one, two, _, three = backupPasses(units, t.consumed, S, toFill, dtHours, idle, pL, pC,
+                                          eqWant)
         t.backupLoadWh = one.total
         t.backupChargeWh = two.total
+        t.backupEqWh = three and three.total or 0
         U = one.total + two.total
     end
 
@@ -1495,6 +1535,7 @@ function M.step(sys, dtHours, env)
         end
     end
 
+
     -- The house is dark (a start-up hold, a switch just thrown, cells just
     -- fitted) and the bank is already at its floor with no sun to carry the
     -- load: lighting the house now would only shed it again a minute later,
@@ -1522,23 +1563,29 @@ function M.step(sys, dtHours, env)
     -- The backup's own figures, and each unit's petrol, billed on its own
     -- split of load and charging. Every running unit burns its idle for the
     -- whole step, even one that gave nothing.
-    t.backupWh = U
-    t.backupWatts = dtHours > 0 and U / dtHours or 0
+    -- The equalisation charge's share is billed as charging, and kept apart
+    -- (eqWh, eqFuel) so OG_System can give back what the cells did not take.
+    local all = U + t.backupEqWh
+    t.backupWh = all
+    t.backupWatts = dtHours > 0 and all / dtHours or 0
     if one then
-        local parts = { U = U, loadWh = t.backupLoadWh, chargeWh = t.backupChargeWh,
+        local parts = { U = all, loadWh = t.backupLoadWh,
+                        chargeWh = t.backupChargeWh + t.backupEqWh,
                         billedWh = t.consumed, loadUnits = backup.loadUnits or 0,
                         unitlessW = backup.unitlessW or 0, dt = dtHours, wpu = backup.wpu }
         for i = 1, #units do
             local wh1, wh2 = one[i].wh, two[i].wh
+            local wh3 = three and three[i].wh or 0
             local fuel
             if real then
-                fuel = M.realFuelUse({ wh = wh1 + wh2, dtRun = dtHours, rating = units[i].rating },
-                                     backup.use)
+                fuel = M.realFuelUse({ wh = wh1 + wh2 + wh3, dtRun = dtHours,
+                                       rating = units[i].rating }, backup.use)
             else
-                fuel = M.fuelUse({ wh = wh1 + wh2, dtRun = dtHours, loadWh = wh1, chargeWh = wh2 },
-                                 parts, backup.gfc, backup.use)
+                fuel = M.fuelUse({ wh = wh1 + wh2 + wh3, dtRun = dtHours, loadWh = wh1,
+                                   chargeWh = wh2 + wh3 }, parts, backup.gfc, backup.use)
             end
-            t.backupUnits[i] = { key = one[i].key, wh = wh1 + wh2, fuel = fuel }
+            t.backupUnits[i] = { key = one[i].key, wh = wh1 + wh2 + wh3, fuel = fuel,
+                                 eqWh = wh3, eqFuel = wh3 * pC }
         end
     end
     sys.bank = bank

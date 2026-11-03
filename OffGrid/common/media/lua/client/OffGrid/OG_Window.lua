@@ -267,6 +267,8 @@ local GEN_STATE = {
 local GEN_BRAND = {
     valutech = "IGUI_OffGrid_BrandValuTech", old = "IGUI_OffGrid_BrandOld",
     lectromax = "IGUI_OffGrid_BrandLectromax", premium = "IGUI_OffGrid_BrandPremium",
+    -- a linked Onan 12.5JC (OG_Onan)
+    onan = "IGUI_OffGrid_BrandOnan",
 }
 
 --- A string cut to a width, so a long translation shortens a label rather
@@ -653,6 +655,7 @@ function OG_Window:refresh()
         -- The backup generators, from the controller's mirror under bk*
         -- names: gen stays solar watts, and so do SOLAR, PV and DAY.
         bkW = d.bkW or 0,
+        bkEqW = d.bkEqW or 0,
         bkCap = d.bkCap or 0,
         bkN = d.bkN or 0,
         bkRows = d.bkRows,
@@ -673,8 +676,10 @@ function OG_Window:refresh()
     -- cut-off, which rises in the cold. The - and + still step (and dim
     -- against) the level he set, snap.bkStart.
     snap.bkStartShown = math.max(snap.bkStart, lvEff)
-    -- What the house nets: the sun and the generators in, the load out.
-    snap.net = snap.gen + snap.bkW - snap.load
+    -- What the house nets: the sun and the generators in, the load out. The
+    -- generators' share an equalisation charge took (bkEqW) reaches neither
+    -- the house nor the bank, so CHARGE is not lit by it.
+    snap.net = snap.gen + snap.bkW - snap.bkEqW - snap.load
     -- Charging is the model's own rule: a surplus, and room in the bank for
     -- it. A full bank clips its surplus and charges nothing.
     snap.charging = snap.net > 0 and (snap.capacity - snap.charge) > 0.01

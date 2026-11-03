@@ -336,14 +336,15 @@ local function specRows(obj, info, d)
         local word = K.unitState(d, masterOn, feedL)
         local st = BACKUP_STATE[word] or BACKUP_STATE.off
         add(getText("IGUI_OffGrid_InfoState"), getText(st.key), st.col)
-        local brand = K.BRANDS[info.tier]
+        local brand = K.brand(info.tier)
         if brand then
             add(getText("IGUI_OffGrid_InfoRating"),
                 string.format("%d W", math.floor(brand.rating + 0.5)))
         end
-        local fuel = tonumber(d.fuel) or 0
+        -- its own tank: a linked Onan's propane and belly tank (OG_Onan)
+        local fuel = K.unitFuel(obj)
         add(getText("IGUI_OffGrid_InfoTank"),
-            string.format("%.1f / %d L", fuel, math.floor(K.TANK)),
+            string.format("%.1f / %d L", fuel, math.floor(K.tankSize(obj))),
             fuel <= 0 and "bad" or nil)
         -- Amber while the top-up skips a barrel that holds a mix.
         local row = backupRow(cd, obj)
@@ -368,7 +369,7 @@ local function specRows(obj, info, d)
             (not auto) and "dim" or nil)
         -- Amber from where it starts to backfire (K.BACKFIRE's top tier, 40),
         -- red once it has worn out and stopped with FAULT.
-        local cond = tonumber(d.condition) or 100
+        local cond = K.unitCondition(obj)
         local tiers = K.BACKFIRE
         local rough = tiers and tiers[#tiers] and tiers[#tiers][1] or 40
         add(getText("IGUI_OffGrid_InfoCondition"), pct(cond / 100),

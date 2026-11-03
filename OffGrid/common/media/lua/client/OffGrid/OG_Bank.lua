@@ -114,6 +114,29 @@ local function reachable(playerObj, object)
        and sq:getZ() == playerObj:getZ()
 end
 
+--- The middle column of GridInventory's inventory screen, when it is open.
+--
+--  GridInventory (Workshop 3782313362) turns the inventory into full-height
+--  panels across the whole screen and raises them each time it opens
+--  (ISInventoryPage_Hijack.lua, setVisible). This panel then sat behind them
+--  where no battery could be dropped on it ("can't put car batteries in the
+--  wall battery box", Workshop, 2026-10-16). Its middle column is a character
+--  picture between two rows of slots, the one place the panel covers nothing
+--  a player drags from. Returns the spot centred in it, or nil without
+--  GridInventory or with its screen closed. GridInventory_PaperDollWindow is
+--  that mod's own global, one window per player.
+local function dollSpot(self)
+    local dolls = GridInventory_PaperDollWindow
+    local doll = type(dolls) == "table" and dolls[self.character:getPlayerNum()] or nil
+    if not doll or not doll.getIsVisible or not doll:getIsVisible() then return nil end
+    return math.floor(doll:getX() + (doll:getWidth() - self:getWidth()) / 2),
+           math.floor(doll:getY() + (doll:getHeight() - self:getHeight()) / 2)
+end
+
+-- how many update ticks the panel keeps raising itself after the inventory
+-- opens or a drag starts (see stayInSight)
+local RAISE_TICKS = 3
+
 ----------------------------------------------------------------- lifecycle
 
 function OG_Bank:createChildren()
@@ -154,6 +177,52 @@ function OG_Bank:close()
     OffGrid.Bank.current = nil
 end
 
+--- Keep the panel in front of the inventory it is used with.
+--
+--  Raised for a few ticks after the inventory opens (the inventory raises
+--  itself in the same frame, and whichever request comes later wins) and when
+--  a drag starts, since starting one clicks the inventory and raises it. Not
+--  always on top: that would draw it over context menus and item tooltips.
+--  With GridInventory it also moves into dollSpot while the inventory is open
+--  and back when it closes, unless the player has moved it meanwhile.
+function OG_Bank:stayInSight()
+    local inv = getPlayerInventory(self.character:getPlayerNum())
+    local open = inv ~= nil and inv:getIsVisible() == true
+    if open and not self.invOpen then
+        self.raise = RAISE_TICKS
+        self.toDoll = true
+    elseif not open and self.invOpen then
+        if self.dollX and self:getX() == self.dollX and self:getY() == self.dollY then
+            self:setX(self.homeX)
+            self:setY(self.homeY)
+        end
+        self.dollX, self.dollY = nil, nil
+    end
+    self.invOpen = open
+    -- Tried for as long as the panel is being raised, in case GridInventory
+    -- shows its middle column a frame after the inventory itself.
+    if self.toDoll and open then
+        local x, y = dollSpot(self)
+        if x then
+            self.toDoll = false
+            if self:getX() == self.homeX and self:getY() == self.homeY then
+                self:setX(x)
+                self:setY(y)
+                self.dollX, self.dollY = x, y
+            end
+        elseif (self.raise or 0) <= 0 then
+            self.toDoll = false
+        end
+    end
+    local dragging = ISMouseDrag.dragging ~= nil
+    if dragging and not self.dragSeen then self.raise = RAISE_TICKS end
+    self.dragSeen = dragging
+    if (self.raise or 0) > 0 then
+        self.raise = self.raise - 1
+        self:bringToTop()
+    end
+end
+
 function OG_Bank:update()
     ISCollapsableWindow.update(self)
     -- A rack that was picked up or destroyed while the panel was open.
@@ -179,6 +248,7 @@ function OG_Bank:update()
             return
         end
     end
+    self:stayInSight()
     self.tick = (self.tick or 0) + 1
     if self.tick % 6 == 0 or not self.cells then
         self:refresh()
@@ -394,6 +464,8 @@ function OG_Bank:new(x, y, playerObj, object)
     -- is set here rather than passed into the constructor above.
     o:setHeight(o:titleBarHeight() + HEAD
                 + rows * (SLOT + LABEL + GAP) + PAD)
+    -- where it opened, for stayInSight to come back to
+    o.homeX, o.homeY = x, y
     return o
 end
 

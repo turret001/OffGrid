@@ -110,7 +110,8 @@ end
 local function entryFrom(e)
     local run, auto = e.run, e.auto
     return {
-        fuel = M.clamp(num(e.fuel, 0), 0, K.TANK),
+        -- K.MAX_TANK, not K.TANK: a linked Onan's entry holds its belly tank
+        fuel = M.clamp(num(e.fuel, 0), 0, K.MAX_TANK),
         cond = M.clamp(num(e.cond, 100), 0, 100),
         run = (run == "on" or run == true or run == 1 or run == "1") and "on" or "off",
         fault = word(e.fault),
@@ -265,7 +266,8 @@ function BK.resolve(rec, ctrl)
         local sq = try(obj, "getSquare")
         if type(ix) == "number" and ix >= 0 and sq then
             local d = P.data(obj)
-            local brand = K.BRANDS[d.tier]
+            local brand = K.brand(d.tier)
+            local linked = brand ~= nil and brand.linked == true
             if d.sys ~= root then
                 rec.relinkAt = -1
             elseif brand then
@@ -274,15 +276,24 @@ function BK.resolve(rec, ctrl)
                 local e = map[nk]
                 local at = num(d.at, nil)
                 if e and e.at and (at == nil or e.at - at > AT_EPS) then
+                    local before = num(d.fuel, 0)
                     BK.applyMirror(d, e)
+                    -- what the paper run burned and wore comes off a linked Onan's own
+                    if linked then OffGrid.Onan.settle(obj, d, before) end
                     -- a client streamed it in with its saved ModData: push the settled state now
                     rec.syncIn = 0
+                elseif linked then
+                    -- his menus may have filled it since the last tick
+                    OffGrid.Onan.pull(obj, d)
                 end
+                -- never running the vanilla way (OG_Onan)
+                if linked and OffGrid.Onan.keepOff(obj) then rec.syncIn = 0 end
                 mem.tiers[nk] = d.tier
                 units[#units + 1] = {
                     key = nk, x = x, y = y, z = z, obj = obj, far = false, d = d,
                     tier = d.tier, rating = brand.rating, wearN = brand.wearN,
-                    fuel = M.clamp(num(d.fuel, 0), 0, K.TANK),
+                    linked = linked, ff = brand.fuelFactor or 1,
+                    fuel = M.clamp(num(d.fuel, 0), 0, linked and K.MAX_TANK or K.TANK),
                     -- the feeds step of BK.before tops the tank up and fills these
                     feedL = 0, mix = false,
                     feeds = type(d.feeds) == "string" and K.decodeFeeds(d.feeds) or {},
@@ -300,12 +311,13 @@ function BK.resolve(rec, ctrl)
         local f = rec.far[i]
         local e = f.kind == "backup" and map[f.nk] or nil
         local tier = e and (mem.tiers[f.nk] or rowTier(rows, f.nk))
-        local brand = tier and K.BRANDS[tier]
+        local brand = tier and K.brand(tier)
         if brand then
             mem.tiers[f.nk] = tier
             units[#units + 1] = {
                 key = f.nk, x = f.x, y = f.y, z = f.z, obj = nil, far = true, d = e,
                 tier = tier, rating = brand.rating, wearN = brand.wearN,
+                linked = brand.linked == true, ff = brand.fuelFactor or 1,
                 fuel = e.fuel, feedL = e.feedL, mix = false, feeds = {},
                 lost = mem.lost[f.nk] or 0,
                 auto = e.auto, run = e.run, fault = e.fault, since = e.since,
@@ -369,6 +381,23 @@ local function unitWrite(u)
     local d = u.d
     d.fuel, d.condition, d.wear = u.fuel, u.cond, u.wear
     d.run, d.fault, d.since, d.rest = u.run, u.fault, u.since, u.rest
+    -- a linked Onan's fuel and condition are his generator's own
+    if u.linked then OffGrid.Onan.push(u.obj, d) end
+end
+
+--- How much of a vanilla generator's burn this unit burns: a linked Onan
+--  its own fuel use (80% by default), every other unit all of it. Realistic
+--  Mode bills every unit by its rating (M.realPrices), so 1 there.
+local function burnFactor(u, bk)
+    if bk.realistic then return 1 end
+    return math.max(0, tonumber(u.ff) or 1)
+end
+
+--- The tank the model may draw on, in a vanilla generator's litres: a unit
+--  that burns less of them gets that much more out of each litre it holds.
+local function modelTank(fuel, factor)
+    if factor <= 0 then return 1e9 end
+    return fuel / factor
 end
 
 --- A unit stopped for a reason, not by Auto, keeps the reason as its fault.
@@ -534,7 +563,8 @@ local function handOver(sys, bk)
     for i = 1, #bk.units do
         local u = bk.units[i]
         if u.run == "on" then
-            running[#running + 1] = { key = u.key, rating = u.rating, tank = u.fuel }
+            running[#running + 1] = { key = u.key, rating = u.rating,
+                                      tank = modelTank(u.fuel, burnFactor(u, bk)) }
             bk.capW = bk.capW + u.rating
         end
     end
@@ -612,7 +642,7 @@ function BK.after(rec, ctrl, d, bk, tel, env, dt, hoursAgo, now, sliceToday)
         local e = bill[i]
         local u = byKey[e.key]
         if u and u.run == "on" then
-            local take = math.min(u.fuel, math.max(0, tonumber(e.fuel) or 0))
+            local take = math.min(u.fuel, math.max(0, tonumber(e.fuel) or 0) * burnFactor(u, bk))
             u.fuel = u.fuel - take
             burned = burned + take
             u.wh = math.max(0, tonumber(e.wh) or 0)
@@ -655,6 +685,9 @@ function BK.after(rec, ctrl, d, bk, tel, env, dt, hoursAgo, now, sliceToday)
     -- What the GEN page reads, under bk* names (`gen` is solar watts).
     d.bkCap = dt > 0 and (tel.backupCap or 0) / dt or 0
     d.bkW = tel.backupWatts or 0
+    -- the part of bkW an equalisation charge took (M.step's backupEqWh): it
+    -- reaches neither the house nor the bank, so the monitor's net leaves it out
+    d.bkEqW = dt > 0 and (tel.backupEqWh or 0) / dt or 0
     d.bkN = #bk.units
     d.bkStartNow, d.bkStopNow = bk.levels.start, bk.levels.stop
     d.bkSunSince = bk.sunSince
@@ -707,7 +740,7 @@ function BK.snapshot(rec, d, bk)
         local u = bk.units[i]
         units[#units + 1] = {
             k = u.key, tier = u.tier, rating = u.rating, wearN = u.wearN,
-            tank = u.fuel, feedL = feedsOf(u),
+            tank = u.fuel, feedL = feedsOf(u), ff = burnFactor(u, bk),
             auto = u.auto, run = u.run, fault = u.fault, wear = u.wear,
             since = u.since, rest = u.rest, cond = u.cond,
         }
@@ -799,7 +832,10 @@ function BK.remoteBefore(snap, sys, env, dt, now)
     local running = {}
     for i = 1, #bs.units do
         local u = bs.units[i]
-        if u.run == "on" then running[#running + 1] = { key = u.k, rating = u.rating, tank = u.tank } end
+        if u.run == "on" then
+            running[#running + 1] = { key = u.k, rating = u.rating,
+                                      tank = modelTank(u.tank, tonumber(u.ff) or 1) }
+        end
     end
     if #running > 0 then
         sys.backup = { units = running, gfc = bs.gfc, use = bs.use, loadUnits = bs.loadUnits,
@@ -824,7 +860,7 @@ function BK.remoteAfter(snap, tel, dt, now)
         local e = list[i]
         local u = byKey[e.key]
         if u and u.run == "on" then
-            u.tank = math.max(0, u.tank - math.max(0, tonumber(e.fuel) or 0))
+            u.tank = math.max(0, u.tank - math.max(0, tonumber(e.fuel) or 0) * (tonumber(u.ff) or 1))
             local points, left = M.wear({ wear = u.wear, wearN = u.wearN }, dt)
             u.wear = left
             u.cond = math.max(0, u.cond - points)
@@ -935,7 +971,7 @@ function BK.live(rec, ctrl, now)
         local sq = P.try(obj, "getSquare")
         local ix = P.try(obj, "getObjectIndex")
         local d = sq and type(ix) == "number" and ix >= 0 and P.data(obj) or nil
-        local brand = d and d.run == "on" and K.BRANDS[d.tier] or nil
+        local brand = d and d.run == "on" and K.brand(d.tier) or nil
         if brand then
             local x, y, z = math.floor(sq:getX()), math.floor(sq:getY()), math.floor(sq:getZ())
             if loud and wsm then
@@ -1117,7 +1153,7 @@ function BK.showNow(ctrl)
                     local was = r.s == "running"
                     nr.s = K.unitState(src, master, feed)
                     nr.auto = src.auto ~= false
-                    nr.tank = M.clamp(num(src.fuel, 0), 0, K.TANK)
+                    nr.tank = M.clamp(num(src.fuel, 0), 0, K.MAX_TANK)
                     -- a unit's ModData says condition, a mirror entry cond
                     nr.cond = M.clamp(num(src.condition, num(src.cond, 100)), 0, 100)
                     if nr.s ~= "running" or not was then
@@ -1133,6 +1169,7 @@ function BK.showNow(ctrl)
         end
         cd.bkRows = out
         cd.bkW = watts
+        cd.bkEqW = math.min(num(cd.bkEqW, 0), watts)
         if running == 0 then cd.bkCap = 0 end
     end
     I().sync(ctrl)
@@ -1195,17 +1232,25 @@ end
 --  (its tank, condition, wear, timers) would be lost for good. So the newer
 --  entry is written onto it first, by BK.resolve's own rule (the mirror's
 --  `at` newer by more than its five-decimal rounding). The timed actions call
---  it too, on the authority. Nothing to do for a unit with no live controller.
+--  it too, on the authority. Nothing to do for a unit with no live controller,
+--  except a linked Onan, whose copy of its fuel and condition is taken from
+--  the generator again (OG_Onan), cabled or not.
 function BK.freshen(unit)
     local sq = unit and try(unit, "getSquare")
     if not sq or P.partOf(unit) ~= "backup" then return end
     local d = P.data(unit)
-    if type(d.sys) ~= "string" or d.sys == "" then return end
-    local ctrl = I().controllerAt(d.sys)
-    if not ctrl then return end
-    local e = BK.readMirror(ctrl)[M.nodeKey(sq:getX(), sq:getY(), sq:getZ(), "backup")]
+    local linked = K.linked(unit)
+    local ctrl = nil
+    if type(d.sys) == "string" and d.sys ~= "" then ctrl = I().controllerAt(d.sys) end
+    local e = ctrl and BK.readMirror(ctrl)[M.nodeKey(sq:getX(), sq:getY(), sq:getZ(), "backup")]
     local at = tonumber(d.at)
-    if e and e.at and (at == nil or e.at - at > 1e-4) then BK.applyMirror(d, e) end
+    if e and e.at and (at == nil or e.at - at > 1e-4) then
+        local before = tonumber(d.fuel) or 0
+        BK.applyMirror(d, e)
+        if linked then OffGrid.Onan.settle(unit, d, before) end
+    elseif linked then
+        OffGrid.Onan.pull(unit, d)
+    end
 end
 
 --- Start refusals for a unit out of memory, from what the controller's
