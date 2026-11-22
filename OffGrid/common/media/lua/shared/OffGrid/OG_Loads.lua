@@ -29,6 +29,18 @@ local DRAW = {
     radio = 22, tv = 95, charger = 250,
 }
 
+-- A fuel pump draws its 500 W only while fuel is being taken from it; the rest
+-- of the time its display and electronics take this much (Can, 2026-11-22,
+-- after a player found 500 W a pump day and night "insane"). A pump stand on
+-- the map is two tiles, each its own pump with its own fuel, so a stand idles
+-- at 50 W (Can, 2026-11-22: "50 W per stand").
+local PUMP_STANDBY = 25
+-- How long after its fuel last dropped a pump still counts as pumping, in game
+-- hours: both vanilla actions take fuel from it in steps several times a game
+-- minute (ISTakeFuel.updateUse, ISRefuelFromGasPump.update), so this covers
+-- the gap between two ticks without billing a pump left alone.
+local PUMP_BUSY_HOURS = 1.5 / 60
+
 -------------------------------------------------------------------- helpers
 
 -- An appliance nothing here recognises still draws something. The engine's own
@@ -184,6 +196,42 @@ local function classify(obj)
     return nil
 end
 
+--- A fuel pump's last fuel reading and the hour its fuel last dropped, by
+--  square, for every reader in this Lua state (the sweep, the near re-read,
+--  the coverage overlay): they read one pump, so they agree on it.
+local pumps = {}
+
+local function worldHours()
+    local E = OffGrid.Env
+    return E and E.worldHours and E.worldHours() or nil
+end
+
+--- What a fuel pump draws now: PUMP_STANDBY, or its full DRAW.pump while
+--  fuel is being taken from it. Both vanilla actions lower its piped fuel
+--  bit by bit as they run, and the setter sends the amount to the server
+--  (IsoObject.setPipedFuelAmount), so a drop since the last reading, or
+--  within PUMP_BUSY_HOURS of it, is a pump in use, on either side. With
+--  the sandbox's infinite gas the amount never drops, and a pump stays on
+--  standby.
+local function pumpDraw(obj)
+    local sq = try(obj, "getSquare")
+    local fuel = tonumber(try(obj, "getPipedFuelAmount")) or 0
+    if not sq then return PUMP_STANDBY end
+    local k = sq:getX() .. "," .. sq:getY() .. "," .. sq:getZ()
+    local now = worldHours()
+    local m = pumps[k]
+    if not m then
+        pumps[k] = { fuel = fuel }
+        return PUMP_STANDBY
+    end
+    local dropped = fuel < m.fuel
+    m.fuel = fuel
+    if dropped then m.at = now end
+    if dropped then return DRAW.pump end
+    if now and m.at and now - m.at <= PUMP_BUSY_HOURS then return DRAW.pump end
+    return PUMP_STANDBY
+end
+
 --- Watts a single world object draws from THIS system right now.
 --
 --  Returns watts, cold?, kind, rated watts, units. Kind and rated come back
@@ -272,15 +320,21 @@ local function objectDraw(obj)
         return n == 2 and DRAW.washerdryer or DRAW.washer,
                false, n == 2 and "washerdryer" or "washer", rated, raw
     end
+    -- a fuel pump: standby, or its full draw while fuel is taken (pumpDraw)
+    if kind == "pump" then return pumpDraw(obj), false, kind, rated, raw, rk end
     if kind then return rated, coldKind, kind, rated, raw, rk end
 
     return raw * UNKNOWN_WATTS_PER_UNIT, false, "other", nil, raw
 end
 
 L.DRAW = DRAW
+L.PUMP_STANDBY = PUMP_STANDBY
+L.PUMP_BUSY_HOURS = PUMP_BUSY_HOURS
 L.classify = classify
 L.objectDraw = objectDraw
 L.fixedLight = fixedLight
+--- Forget every pump reading (the tests).
+function L.resetPumps() pumps = {} end
 -- One number: a backup generator's charging and every load watt with no
 -- engine unit are billed at this rate too (OG_BackupSys hands it to M.step).
 L.WATTS_PER_UNIT = UNKNOWN_WATTS_PER_UNIT

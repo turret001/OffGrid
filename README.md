@@ -9,7 +9,7 @@ the batteries run low.
 - **Steam Workshop:** https://steamcommunity.com/sharedfiles/filedetails/?id=3789425624
 - **How it works:** see the [wiki](https://github.com/turret001/OffGrid/wiki)
 - **FAQ:** [short answers to common questions](https://github.com/turret001/OffGrid/wiki/FAQ)
-- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 3.1.2 · **Game:** Build 42
+- **Mod ID:** `OffGrid` · **Workshop ID:** `3789425624` · **Version:** 3.1.3 · **Game:** Build 42
 
 ![Build your first rig](images/01-build-your-first-rig.png)
 
@@ -47,6 +47,10 @@ an issue here.
   propane and belly tank, and you fill it from its own menu.
 - **Place Anywhere:** works whatever the mod order. Off-Grid's own placing rules still apply to its parts.
 - **GridInventory:** the battery panel comes to the front when you open the inventory.
+- **NeatUI - Grid Inventory:** pick a car battery up and click an empty bay to put it in. A full bay keeps its
+  battery.
+- **BADLANDS Power:** its Battery Bank gives off no fumes next to a charge controller. A petrol generator in the
+  same building still does.
 - **Knox Power:** a charge controller cannot be connected to a Knox panel. Wire buildings from the controller instead.
   Knox's switches still apply to houses Off-Grid powers.
 

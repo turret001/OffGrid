@@ -714,14 +714,17 @@ function D.sweep(rec)
                                 -- unloaded unit walks the whole unit too.
                                 cost = cost + 1
                                 if R.owner(shapes, ix, sw.si, x, y, z) then
-                                    local sw_, sc
+                                    local sw_, sc, px
                                     if loaded then
-                                        sw_, sc = internal.readSquare(rec, x, y, z)
+                                        sw_, sc, px = internal.readSquare(rec, x, y, z)
                                     else
                                         local c = rec.drawn[x .. "," .. y .. "," .. z]
-                                        sw_, sc = c and c.w or 0, c and c.cold or 0
+                                        sw_, sc, px = c and c.w or 0, c and c.cold or 0, c and c.px
                                     end
-                                    w, cold = w + sw_, cold + sc
+                                    -- a pump in use at standby: the cache
+                                    -- carries its extra while it lasts
+                                    -- (OG_System S.rereadPumps)
+                                    w, cold = w + sw_ - (px or 0), cold + sc
                                 end
                             end
                         end

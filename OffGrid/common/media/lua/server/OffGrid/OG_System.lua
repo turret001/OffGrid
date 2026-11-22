@@ -92,6 +92,8 @@ local objectDraw = OffGrid.Loads.objectDraw
 -- however many wall switches the room has (roomLights).
 local LIGHT_W = OffGrid.Loads.DRAW.light
 local fixedLight = OffGrid.Loads.fixedLight
+-- A fuel pump on standby (OG_Loads pumpDraw): anything above it is pumping.
+local PUMP_STANDBY = OffGrid.Loads.PUMP_STANDBY
 
 local function key(x, y, z) return x .. "," .. y .. "," .. z end
 
@@ -986,13 +988,15 @@ local function readSquare(rec, x, y, z)
         -- standing. No invalidation is needed: nothing can be added to a
         -- square whose chunk is not in memory.
         local c = rec.drawn[k]
-        if c then return c.w, c.cold end
+        if c then return c.w, c.cold, c.px end
         return 0, 0
     end
 
     local w, cold, units = 0, 0, 0
     local kinds, idle = nil, nil
     local lit, dark, fixed = nil, nil, 0
+    -- watts of fuel pumps above their standby: pumps in use (rec.pumping)
+    local pumping = 0
     local objs = s:getObjects()
     for i = 0, objs:size() - 1 do
         local o = objs:get(i)
@@ -1026,6 +1030,7 @@ local function readSquare(rec, x, y, z)
             -- a lamp nobody can switch (OG_Loads fixedLight): LIGHTS OFF
             -- leaves it, and never counts it as out of reach
             if ow > 0 and kk == "light" and fixedLight(o) then fixed = fixed + ow end
+            if kk == "pump" and ow > PUMP_STANDBY then pumping = pumping + (ow - PUMP_STANDBY) end
             if ow > 0 then
                 kinds = kinds or {}
                 kinds[kk] = (kinds[kk] or 0) + ow
@@ -1049,11 +1054,23 @@ local function readSquare(rec, x, y, z)
         -- keep their watts in the total. So do the rooms its wall switches
         -- light (rl) or would (ri).
         rec.drawn[k] = { w = w, cold = cold, u = units, kinds = kinds, idle = idle,
-                         rl = lit, ri = dark, fx = fixed > 0 and fixed or nil }
+                         rl = lit, ri = dark, fx = fixed > 0 and fixed or nil,
+                         px = pumping > 0 and pumping or nil }
     else
         rec.drawn[k] = nil
     end
-    return w, cold
+    -- A pump in use is read again every tick until it is back on standby
+    -- (S.rereadPumps), or its full draw would sit in the cache until the sweep
+    -- came round, most of an in-game hour after the player walked off.
+    if pumping > 0 then
+        rec.pumping = rec.pumping or {}
+        rec.pumping[k] = true
+    elseif rec.pumping then
+        rec.pumping[k] = nil
+    end
+    -- third: the pumps' watts above standby, which the sweeps leave out of
+    -- their sums (S.rereadPumps publishes them from the cache while they last)
+    return w, cold, pumping > 0 and pumping or nil
 end
 
 --- Is a room lit? Its latest live reading says (readSquare, rec.roomLit):
@@ -1252,6 +1269,37 @@ function S.scanNear(rec)
     publishCache(rec)
 end
 
+--- Read again every square holding a fuel pump billed at its full draw
+--  (readSquare, rec.pumping), every tick, wherever the players are, until it
+--  is back on standby. A square out of memory has nobody at its pump: its
+--  cached entry drops to standby and is not read again. Republishes like
+--  S.scanNear when anything was read.
+function S.rereadPumps(rec)
+    if not (rec.pumping and rec.drawn) then return end
+    local keys = {}
+    for k in pairs(rec.pumping) do keys[#keys + 1] = k end
+    if #keys == 0 then return end
+    for i = 1, #keys do
+        local k = keys[i]
+        local x, y, z = string.match(k, "^(-?%d+),(-?%d+),(-?%d+)$")
+        x, y, z = tonumber(x), tonumber(y), tonumber(z)
+        if x and getSquare(x, y, z) then
+            readSquare(rec, x, y, z)
+        else
+            local e = rec.drawn[k]
+            if e and e.px then
+                e.w = math.max(0, (e.w or 0) - e.px)
+                if e.kinds and e.kinds.pump then
+                    e.kinds.pump = math.max(0, e.kinds.pump - e.px)
+                end
+                e.px = nil
+            end
+            rec.pumping[k] = nil
+        end
+    end
+    publishCache(rec)
+end
+
 --- One slice of the appliance load scan. Walks a fraction of the rows each
 --  call, so a sweep of the whole powered cylinder (a GeneratorTileRange disc
 --  on every GeneratorVerticalPowerRange level, 41x41x7 at the defaults) never
@@ -1278,8 +1326,11 @@ function S.scanSlice(rec)
             if dx * dx + dy * dy <= r2 then
                 for dz = -vr, vr do
                     local x, y, z = rec.x + dx, rec.y + dy, rec.z + dz
-                    local w, cold = readSquare(rec, x, y, z)
-                    rec.scanLoad = rec.scanLoad + w
+                    local w, cold, px = readSquare(rec, x, y, z)
+                    -- a pump in use at standby: its extra is published from
+                    -- the cache while it lasts (S.rereadPumps), never held in
+                    -- a sum that outlives it
+                    rec.scanLoad = rec.scanLoad + w - (px or 0)
                     rec.scanCold = rec.scanCold + cold
                 end
             end
@@ -2334,6 +2385,8 @@ function S.updateController(rec, dt, hoursAgo, wet)
     -- After the slice, so a square this tick's slice just walked is not
     -- read twice, and so the republish sees the slice's own work.
     S.scanNear(rec)
+    -- a fuel pump in use, until it is back on standby (rec.pumping)
+    S.rereadPumps(rec)
 
     local arrays, panels, bank, byTier, shaded = gather(rec, env)
     local lvdBefore = d.lvd == true

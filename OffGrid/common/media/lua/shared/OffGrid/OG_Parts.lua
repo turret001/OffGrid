@@ -370,8 +370,23 @@ function P.isPainted(obj)
     return not instanceof(obj, "IsoGenerator")
 end
 
+--- A running generator another mod makes that gives off no fumes: BADLANDS
+--  Power's Battery Bank (Workshop 3804093735), car batteries and an inverter
+--  that is an IsoGenerator only so it can power squares. Its own fumes guard
+--  clears the flag unless some other running generator is in the building,
+--  and counts a controller as one; Off-Grid counted the bank, so with both
+--  running in one house nobody cleared it and everyone inside choked (read
+--  2026-11-22, BadlandsPower_Toxic.lua:39-62). Asked through its own isBank.
+local function fumeFree(o)
+    local BP = BadlandsPower
+    if type(BP) ~= "table" or type(BP.isBank) ~= "function" then return false end
+    local ok, yes = pcall(BP.isBank, o)
+    return ok and yes == true
+end
+
 --- The running generators on a square: the first one that is NOT an Off-Grid
---  controller (or nil), and whether a running controller is there too.
+--  controller (or nil), and whether a running controller is there too. A
+--  generator that gives off no fumes (fumeFree) is neither.
 --
 --  Every generator on the square, not getGenerator(), which returns only the
 --  first: nothing stops two sharing a tile, and the engine marks a building
@@ -387,7 +402,7 @@ function P.generatorsOn(sq)
         if o and instanceof(o, "IsoGenerator") and o:isActivated() then
             if P.partOf(o) == "controller" then
                 ours = true
-            else
+            elseif not fumeFree(o) then
                 return o, ours
             end
         end

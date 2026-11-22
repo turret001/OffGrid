@@ -137,6 +137,74 @@ end
 -- opens or a drag starts (see stayInSight)
 local RAISE_TICKS = 3
 
+------------------------------------------------- NeatUI - Grid Inventory
+
+-- NeatUI - Grid Inventory (Workshop 3818729237) never drags. A click picks an
+-- item up onto the cursor and the next click puts it down, kept in its own
+-- state ("Deliberately not ISMouseDrag", EGI_Carry.lua:50), and ISMouseDrag is
+-- all a vanilla ISItemSlot reads (ISItemSlot.lua:343-371). So no battery could
+-- get into a rack at all (Workshop comment, 8 November 2026), and a click on a
+-- full bay while carrying one took that bay's battery out. A bay asks NeatUI
+-- too, the way NeatUI's own container buttons do (EGI_ContainerSidebar.lua:
+-- 13-28). Its fields are no public API, so every read is checked and every
+-- call pcalled; without NeatUI a bay is vanilla's.
+
+--- The items NeatUI holds on the cursor, and its Carry table; nil when none.
+local function neatCarry()
+    local egi = EnderfallGridInventory
+    if type(egi) ~= "table" or not egi.enabled then return nil end
+    local carry = egi.Carry
+    local state = type(carry) == "table" and carry.state or nil
+    local entry = type(state) == "table" and state.entry or nil
+    local items = type(entry) == "table" and entry.items or nil
+    if type(items) ~= "table" then return nil end
+    return items, carry
+end
+
+--- Call one of NeatUI's Carry functions; its first answer, or nil.
+local function neatCall(carry, name)
+    local f = carry[name]
+    if type(f) ~= "function" then return nil end
+    local ok, res = pcall(f)
+    if ok then return res end
+    return nil
+end
+
+--- A click on a bay while NeatUI holds something: the first car battery among
+--  what it holds goes in, and the cursor is cleared. Anything else stays on
+--  the cursor, NeatUI's own rule for a place that takes nothing.
+local function neatPut(panel, slot, items, carry)
+    if not neatCall(carry, "valid") then
+        neatCall(carry, "cancel")
+        return
+    end
+    for i = 1, #items do
+        local item = items[i]
+        if OG_Bank.onVerify(panel, slot, item) then
+            OG_Bank.onDrop(panel, slot, { item })
+            neatCall(carry, "cancel")
+            return
+        end
+    end
+end
+
+--- Make one bay answer NeatUI's carry as well as vanilla's drag.
+local function neatBay(panel, slot)
+    local down, up = slot.onMouseDown, slot.onMouseUp
+    slot.onMouseDown = function(self, ...)
+        if neatCarry() then return true end
+        return down(self, ...)
+    end
+    slot.onMouseUp = function(self, ...)
+        local items, carry = neatCarry()
+        if items then
+            neatPut(panel, self, items, carry)
+            return true
+        end
+        return up(self, ...)
+    end
+end
+
 ----------------------------------------------------------------- lifecycle
 
 function OG_Bank:createChildren()
@@ -167,6 +235,7 @@ function OG_Bank:createChildren()
         slot:setToolTip(true, "")
         slot:initialise()
         slot:instantiate()
+        neatBay(self, slot)
         self:addChild(slot)
         self.slots[i] = slot
     end
@@ -214,7 +283,8 @@ function OG_Bank:stayInSight()
             self.toDoll = false
         end
     end
-    local dragging = ISMouseDrag.dragging ~= nil
+    -- NeatUI's click-to-carry counts as a drag (neatCarry)
+    local dragging = ISMouseDrag.dragging ~= nil or neatCarry() ~= nil
     if dragging and not self.dragSeen then self.raise = RAISE_TICKS end
     self.dragSeen = dragging
     if (self.raise or 0) > 0 then
